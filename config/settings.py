@@ -173,13 +173,13 @@ print("WARNING: Password length is set to 4 characters. This is highly insecure 
 
 LANGUAGE_CODE = 'ru-ru'  # Russian interface as requested
 
-TIME_ZONE = 'Europe/Moscow'  # Changed to Moscow time
+TIME_ZONE = 'Europe/Moscow'  # Изменено на Московское время
 
 USE_I18N = True
 
 USE_TZ = True
 
-# Add these lines for localization support
+# Добавьте эти строки для поддержки локализации
 LOCALE_PATHS = [
     BASE_DIR / 'locale',
 ]
