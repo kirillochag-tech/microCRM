@@ -5,3 +5,7 @@ requests==2.32.3
 urllib3==1.26.7
 chardet==5.2.0
 charset-normalizer==2.0.12
+djangorestframework
+django-filter 
+django-import-export
+djangorestframework-simplejwt
