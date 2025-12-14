@@ -1,0 +1,186 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+{% load form_tags %}
+
+{% block title %}{{ title }} | {% trans 'Администрирование Django' %}{% endblock %}
+
+{% block content %}
+<style>
+    .progress-bar {
+        color: black !important;
+    }
+</style>
+<div id="content-main">
+    <div class="module">
+        <h2>{{ title }}</h2>
+        
+        <!-- Общая статистика -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3>{{ total_responses }}</h3>
+                        <p>Всего ответов</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3>{{ unique_clients }}</h3>
+                        <p>Уникальных клиентов</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3>{{ task.target_count }}</h3>
+                        <p>План</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3>{{ task.current_count }}</h3>
+                        <p>Выполнено</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Двухколоночный блок -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Горизонтальный график ответов по вопросам</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        {% for question_stat in questions_stats %}
+                            <div class="mb-4 p-3 border rounded">
+                                <h6>{{ question_stat.question.question_text }}</h6>
+                                
+                                {% if question_stat.choice_stats %}
+                                    <!-- Каждый вариант ответа = отдельная линия -->
+                                    {% for choice_stat in question_stat.choice_stats %}
+                                        <div class="d-flex align-items-center mb-2">
+                                            <span class="me-3" style="width: 200px; font-weight: bold;">
+                                                {{ choice_stat.choice.choice_text }}
+                                            </span>
+                                            <div class="progress" style="flex-grow: 1; height: 20px; .progress-bar {color: black !important;
+}">
+                                                <div class="progress-bar" 
+                                                     role="progressbar" 
+                                                     style="width: {{ choice_stat.percentage|round_to_half_percent }}%; 
+                                                            background-color: {% if forloop.counter == 1 %}#28a745{% elif forloop.counter == 2 %}#ffc107{% elif forloop.counter == 3 %}#dc3545{% elif forloop.counter == 4 %}#17a2b8{% elif forloop.counter == 5 %}#6c757d{% else %}#6f42c1{% endif %};"
+                                                     aria-valuenow="{{ choice_stat.percentage|round_to_half_percent }}" 
+                                                     aria-valuemin="0" 
+                                                     aria-valuemax="100">
+                                                    {{ choice_stat.count }} ({{ choice_stat.percentage|round_to_half_percent }}%)
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% elif question_stat.text_answers_count %}
+                                    <p>Текстовых ответов: {{ question_stat.text_answers_count }}</p>
+                                {% elif question_stat.photo_groups %}
+                                    <!-- Фото вопросы - отображение по клиентам -->
+                                    <div class="accordion" id="photoAccordion{{ question_stat.question.id }}">
+                                        <div class="accordion-item">
+                                            <h2 class="accordion-header" id="heading{{ question_stat.question.id }}">
+                                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ question_stat.question.id }}" aria-expanded="false" aria-controls="collapse{{ question_stat.question.id }}">
+                                                    Фото ({{ question_stat.total_photos }} фото, {{ question_stat.photo_groups|length }} ответов) - нажмите для просмотра
+                                                </button>
+                                            </h2>
+                                            <div id="collapse{{ question_stat.question.id }}" class="accordion-collapse collapse" aria-labelledby="heading{{ question_stat.question.id }}" data-bs-parent="#photoAccordion{{ question_stat.question.id }}">
+                                                <div class="accordion-body">
+                                                    {% for group in question_stat.photo_groups %}
+                                                        <div class="mb-4">
+                                                            <h6 class="text-muted">Клиент: {{ group.answer.client.name }}</h6>
+                                                            <p class="text-muted">Дата: {{ group.answer.created_at|date:"d.m.Y H:i" }}</p>
+                                                            <div class="row">
+                                                                {% for photo_data in group.photos_data %}
+                                                                    <div class="col-md-3 mb-3" style="display: inline-block; margin-right: 15px;">
+                                                                        <div style="position: relative; display: inline-block;">
+                                                                            <img src="{{ photo_data.photo.photo.url }}" alt="Фото" style="max-width: 150px; max-height: 150px; object-fit: cover; cursor: pointer;" 
+                                                                                 data-bs-toggle="modal" data-bs-target="#photoModal{{ photo_data.photo.id }}">
+                                                                            <div style="position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.7); color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px;">
+                                                                                {{ forloop.counter }}
+                                                                            </div>
+                                                                        </div>
+                                                                        {% if photo_data.address %}
+                                                                            <p class="mt-2" style="font-size: 11px;">Координаты: {{ photo_data.address }}</p>
+                                                                        {% endif %}
+                                                                    </div>
+                                                                {% endfor %}
+                                                            </div>
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Модальные окна для фото -->
+                                    {% for group in question_stat.photo_groups %}
+                                        {% for photo_data in group.photos_data %}
+                                            <div class="modal fade" id="photoModal{{ photo_data.photo.id }}" tabindex="-1" aria-labelledby="photoModalLabel{{ photo_data.photo.id }}" aria-hidden="true">
+                                                <div class="modal-dialog modal-xl">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title" id="photoModalLabel{{ photo_data.photo.id }}">Фото</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                                                        </div>
+                                                        <div class="modal-body text-center">
+                                                            <img src="{{ photo_data.photo.photo.url }}" alt="Фото" style="max-width: 90%; max-height: 80vh; object-fit: contain;">
+                                                            <div class="mt-3">
+                                                                <p><strong>Клиент:</strong> {{ photo_data.client.name }}</p>
+                                                                <p><strong>Дата:</strong> {{ photo_data.created_at|date:"d.m.Y H:i" }}</p>
+                                                                {% if photo_data.address %}
+                                                                    <p><strong>Координаты:</strong> {{ photo_data.address }}</p>
+                                                                {% else %}
+                                                                    <p><strong>Координаты:</strong> Не доступны</p>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">Правая панель</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">Эта область зарезервирована для будущих доработок.</p>
+                                <ul>
+                                    <li>Фильтры по клиентам</li>
+                                    <li>Сравнительный анализ</li>
+                                    <li>Дополнительная статистика</li>
+                                    <li>Экспорт данных</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <a href="{% url 'admin:tasks_task_changelist' %}" class="btn btn-secondary">
+            {% trans 'Назад к задачам' %}
+        </a>
+    </div>
+</div>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+{% endblock %}

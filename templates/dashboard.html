@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load announcement_tags %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>{% trans 'Панель управления' %}</h2>
+            <p>{% trans 'Добро пожаловать в систему управления сотрудниками!' %}</p>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">{% trans 'Активные задачи' %}</h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">{% trans 'У вас' %} {{ active_tasks_count }} {% trans 'активных задач' %}</p>
+                    <a href="{% url 'tasks:task_list' %}" class="btn btn-primary w-100">{% trans 'Посмотреть задачи' %}</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">{% trans 'Статистика' %}</h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">{% trans 'Процент выполнения:' %} {{ completion_rate }}%</p>
+                    <div class="progress mt-3">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ completion_rate }}%" aria-valuenow="{{ completion_rate }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">{% trans 'Сообщения' %}</h5>
+                </div>
+                <div class="card-body">
+                    {% with user_announcements=get_user_announcements %}
+                        {% if user_announcements %}
+                            {% for announcement in user_announcements|slice:":3" %}  {# Show only first 3 announcements #}
+                                <div class="announcement-item mb-3" data-announcement-id="{{ announcement.id }}">
+                                    <h6 class="text-primary">{{ announcement.title }}</h6>
+                                    <p class="card-text">{{ announcement.content|truncatechars:100 }}</p>
+                                    <small class="text-muted">
+                                        {% trans 'Автор:' %} {{ announcement.author.get_full_name|default:announcement.author.username }}<br>
+                                        {% trans 'Дата:' %} {{ announcement.created_at|date:"d.m.Y H:i" }}
+                                    </small>
+                                    {% if announcement.requires_acknowledgment and not announcement.is_acknowledged %}
+                                        <form method="post" action="{% url 'announcements:mark_read' announcement.id %}" class="mt-2 acknowledge-form">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="acknowledge" value="true">
+                                            <button type="submit" class="btn btn-sm btn-success acknowledge-btn" data-announcement-id="{{ announcement.id }}">{% trans 'Ознакомлен' %}</button>
+                                        </form>
+                                    {% elif announcement.requires_acknowledgment %}
+                                        <div class="mt-2">
+                                            <span class="badge bg-success">{% trans 'Подтверждено' %}</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                            {% if user_announcements|length > 3 %}
+                                <a href="{% url 'announcements:all' %}" class="btn btn-sm btn-outline-primary">{% trans 'Все сообщения' %}</a>
+                            {% endif %}
+                        {% else %}
+                            <p class="card-text text-muted">{% trans 'Нет новых сообщений' %}</p>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

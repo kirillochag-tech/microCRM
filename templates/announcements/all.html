@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>{% trans 'Все объявления' %}</h2>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-12">
+            {% if announcements %}
+                {% for announcement in announcements %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ announcement.title }}</h5>
+                            <p class="card-text">{{ announcement.content }}</p>
+                            <small class="text-muted">
+                                {% trans 'Автор:' %} {{ announcement.author.get_full_name|default:announcement.author.username }}<br>
+                                {% trans 'Дата:' %} {{ announcement.created_at|date:"d.m.Y H:i" }}
+                            </small>
+                            {% if announcement.requires_acknowledgment %}
+                                <div class="mt-2">
+                                    {% if announcement.is_acknowledged %}
+                                        <span class="badge bg-success">{% trans 'Подтверждено' %}</span>
+                                    {% elif not announcement.is_acknowledged %}
+                                        <form method="post" action="{% url 'announcements:mark_read' announcement.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="acknowledge" value="true">
+                                            <button type="submit" class="btn btn-sm btn-success">{% trans 'Ознакомлен' %}</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">{% trans 'Нет объявлений' %}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

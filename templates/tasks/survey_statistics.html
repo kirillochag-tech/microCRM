@@ -1,0 +1,76 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block content %}
+<div class="container">
+    <h2>Статистика анкеты: {{ task.title }}</h2>
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3>{{ total_responses }}</h3>
+                    <p>Всего ответов</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3>{{ unique_clients }}</h3>
+                    <p>Уникальных клиентов</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3>{{ task.target_count }}</h3>
+                    <p>План</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3>{{ task.current_count }}</h3>
+                    <p>Выполнено</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Детальная статистика по вопросам -->
+    <div class="card">
+        <div class="card-header">
+            <h4>Детальная статистика по вопросам</h4>
+        </div>
+        <div class="card-body">
+            {% for question in task.questions.all %}
+                <div class="mb-4">
+                    <h5>{{ question.question_text }}</h5>
+                    {% if question.has_custom_choices %}
+                        <ul>
+                        {% for choice in question.choices.all %}
+                            {% with count=choice.answers.count %}
+                                <li>{{ choice.choice_text }}: {{ count }}
+                                    {% if total_responses > 0 %}
+                                        ({{ count|div:total_responses|multiply:100|floatformat:1 }}%)
+                                    {% endif %}
+                                </li>
+                            {% endwith %}
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>Текстовых ответов: {{ question.answers.count }}</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="mt-3">
+        <a href="{% url 'admin:tasks_task_changelist' %}" class="btn btn-secondary">Назад к задачам</a>
+    </div>
+</div>
+{% endblock %}

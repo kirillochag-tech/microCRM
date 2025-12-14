@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load i18n form_tags static %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>{% trans 'Заполнение анкеты' %}: {{ task.title }}</h2>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">{{ task.title }}</h5>
+                    {% if not task.client %}
+                        <small class="text-muted">{% trans 'Выберите клиента для опроса' %}</small>
+                    {% else %}
+                        <small class="text-muted">{% trans 'Клиент' %}: {{ task.client.name }}</small>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <!-- Поле выбора клиента (если не задан в задаче) -->
+                        {% if not task.client %}
+                            <div class="form-group mb-3">
+                                <label for="id_client" class="form-label">Выберите клиента:</label>
+                                <div id="client-input-container">
+                                    <input type="text" name="selected_client" id="id_client" class="form-control" required>
+                                    <div id="client-list"></div>
+                                </div>
+                                <input type="hidden" name="selected_client_id" id="selected_client_id">
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Вопросы анкеты -->
+                        {% for question in task.questions.all %}
+                            <div class="mb-4 p-3 border rounded">
+                                <h6>{{ question.question_text }}</h6>
+                                <small class="text-muted">{% trans 'Тип:' %} {{ question.get_question_type_display }}</small>
+                                
+                                {% if question.question_type == 'TEXT' %}
+                                    <textarea class="form-control" name="question_{{ question.id }}" id="question_{{ question.id }}" rows="5"></textarea>
+                                    
+                                {% elif question.question_type == 'TEXT_SHORT' %}
+                                    <input type="text" class="form-control" name="question_{{ question.id }}" id="question_{{ question.id }}" maxlength="20">
+                                    <small class="text-muted">Максимум 20 символов</small>
+                                    
+                                {% elif question.question_type == 'RADIO' %}
+                                    {% if question.has_custom_choices %}
+                                        {% for choice in question.choices.all %}
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" 
+                                                       name="question_{{ question.id }}" 
+                                                       id="question_{{ question.id }}_{{ choice.id }}" 
+                                                       value="{{ choice.id }}">
+                                                <label class="form-check-label" for="question_{{ question.id }}_{{ choice.id }}">
+                                                    {{ choice.choice_text }}
+                                                </label>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="question_{{ question.id }}" value="да" id="question_{{ question.id }}_yes">
+                                            <label class="form-check-label" for="question_{{ question.id }}_yes">Да</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="question_{{ question.id }}" value="нет" id="question_{{ question.id }}_no">
+                                            <label class="form-check-label" for="question_{{ question.id }}_no">Нет</label>
+                                        </div>
+                                    {% endif %}
+                                    
+                                {% elif question.question_type == 'CHECKBOX' %}
+                                    {% if question.has_custom_choices %}
+                                        {% for choice in question.choices.all %}
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       name="question_{{ question.id }}" 
+                                                       id="question_{{ question.id }}_{{ choice.id }}" 
+                                                       value="{{ choice.id }}">
+                                                <label class="form-check-label" for="question_{{ question.id }}_{{ choice.id }}">
+                                                    {{ choice.choice_text }}
+                                                </label>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="question_{{ question.id }}" value="да" id="question_{{ question.id }}_yes">
+                                            <label class="form-check-label" for="question_{{ question.id }}_yes">Да</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="question_{{ question.id }}" value="нет" id="question_{{ question.id }}_no">
+                                            <label class="form-check-label" for="question_{{ question.id }}_no">Нет</label>
+                                        </div>
+                                    {% endif %}
+                                    
+                                {% elif question.question_type == 'SELECT_SINGLE' %}
+                                    <select class="form-select" name="question_{{ question.id }}" id="question_{{ question.id }}">
+                                        <option value="">{% trans '---' %}</option>
+                                        {% if question.has_custom_choices %}
+                                            {% for choice in question.choices.all %}
+                                                <option value="{{ choice.id }}">{{ choice.choice_text }}</option>
+                                            {% endfor %}
+                                        {% else %}
+                                            <option value="да">Да</option>
+                                            <option value="нет">Нет</option>
+                                        {% endif %}
+                                    </select>
+                                    
+                                {% elif question.question_type == 'SELECT_MULTIPLE' %}
+                                    <select class="form-select" name="question_{{ question.id }}" id="question_{{ question.id }}" multiple>
+                                        {% if question.has_custom_choices %}
+                                            {% for choice in question.choices.all %}
+                                                <option value="{{ choice.id }}">{{ choice.choice_text }}</option>
+                                            {% endfor %}
+                                        {% else %}
+                                            <option value="да">Да</option>
+                                            <option value="нет">Нет</option>
+                                        {% endif %}
+                                    </select>
+                                    <small class="text-muted">Удерживайте Ctrl для множественного выбора</small>
+                                    
+                                {% elif question.question_type == 'PHOTO' %}
+                                    <input type="file" class="form-control" name="question_{{ question.id }}" 
+                                           id="question_{{ question.id }}" accept="image/*" multiple>
+                                    <small class="text-muted mt-2">Можно выбрать несколько файлов (до 10)</small>
+                                {% endif %}
+                                
+                                {% if form|get_item:question.id and form|get_item:question.id.errors %}
+                                    <div class="text-danger">{{ form|get_item:question.id.errors }}</div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'tasks:task_detail' task.pk %}" class="btn btn-secondary">{% trans 'Назад' %}</a>
+                            <button type="submit" class="btn btn-primary">{% trans 'Отправить анкету' %}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if not task.client %}
+        <script src="{% static 'js/client_search.js' %}"></script>
+        <link rel="stylesheet" href="{% static 'css/client_search.css' %}">
+    {% endif %}
+</div>
+{% endblock %}

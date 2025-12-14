@@ -1,0 +1,35 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools %}
+  <ul class="object-tools">
+    {% block object-tools-items %}
+      <li>
+        <a href="{% url 'reports:generate_statistics' %}" class="historylink">
+          {% trans 'Сгенерировать статистику' %}
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'reports:export_excel' %}" class="historylink">
+          {% trans 'Экспорт в Excel' %}
+        </a>
+      </li>
+    {% endblock %}
+  </ul>
+{% endblock %}
+
+{% block result_list %}
+  {{ block.super }}
+  
+  {% if cl.result_list %}
+    <div class="module" style="margin-top: 20px;">
+      <h2>{% trans 'Быстрые фильтры' %}</h2>
+      <div style="display: flex; gap: 15px; flex-wrap: wrap; margin: 10px 0;">
+        <a href="?task_type=SURVEY" class="button" style="padding: 5px 15px;">{% trans 'Только анкеты' %}</a>
+        <a href="?task_type=PHOTO" class="button" style="padding: 5px 15px;">{% trans 'Только фотоотчеты' %}</a>
+        <a href="?employee__isnull=False" class="button" style="padding: 5px 15px;">{% trans 'По сотрудникам' %}</a>
+        <a href="?client__isnull=False" class="button" style="padding: 5px 15px;">{% trans 'По клиентам' %}</a>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

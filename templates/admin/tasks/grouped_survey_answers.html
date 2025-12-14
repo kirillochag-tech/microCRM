@@ -1,0 +1,1126 @@
+{% extends "admin/base.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; {{ opts.verbose_name_plural|capfirst }}
+</div>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<style>
+    .filter-container {
+        background: #f8f8f8;
+        padding: 15px;
+        border: 1px solid #ddd;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+    
+    .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-start;
+        margin-bottom: 10px;
+    }
+    
+    .filter-item {
+        display: flex;
+        flex-direction: column;
+        min-width: 150px;
+        max-width: 250px;
+    }
+    
+    .filter-item label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        font-size: 13px;
+    }
+    
+    .filter-item select, .filter-item input {
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+    }
+    
+    .filter-item-wide {
+        min-width: 300px;
+        flex: 1;
+    }
+    
+    .filter-row.compact {
+        gap: 10px;
+    }
+    
+    .filter-row.compact .filter-item {
+        min-width: 120px;
+    }
+    
+    .filter-row.compact .filter-item-wide {
+        min-width: 200px;
+    }
+    
+    .filter-buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+    }
+    
+    .export-section {
+        margin-top: 20px;
+        padding: 15px;
+        background: #eef7ff;
+        border: 1px solid #b8daff;
+        border-radius: 4px;
+    }
+    
+    .answer-card {
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: box-shadow 0.3s ease;
+    }
+    
+    .answer-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .answer-card-header {
+        background: #f8f9fa;
+        padding: 12px 15px;
+        border-bottom: 1px solid #ddd;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .answer-card-header.new {
+        background: #e8f5e8;
+        border-left: 4px solid #28a745;
+    }
+    
+    .answer-card-header.read {
+        background: #f0f0f0;
+    }
+    
+    .answer-card-header h4 {
+        margin: 0;
+        font-size: 14px;
+        color: #333;
+    }
+    
+    .answer-card-header h4 .task-name {
+        font-weight: bold;
+        color: #007cba;
+    }
+    
+    .answer-card-header h4 .client-name {
+        color: #dc3545;
+        font-weight: 500;
+    }
+    
+    .answer-card-header h4 .user-name {
+        color: #6c757d;
+    }
+    
+    .answer-card-header h4 .date-created {
+        color: #6c757d;
+        font-size: 12px;
+    }
+    
+    .answer-card-header .labels {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .label {
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: bold;
+    }
+    
+    .label-new {
+        background: #28a745;
+        color: white;
+    }
+    
+    .label-read {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .answer-card-content {
+        padding: 15px;
+        display: none;
+    }
+    
+    .answer-card-content.expanded {
+        display: block;
+    }
+    
+    .answer-item {
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .answer-item:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+    
+    .question-text {
+        font-weight: bold;
+        color: #495057;
+        margin-bottom: 8px;
+    }
+    
+    .answer-text {
+        color: #6c757d;
+        margin-bottom: 8px;
+    }
+    
+    .answer-choices {
+        color: #28a745;
+        margin-bottom: 8px;
+    }
+    
+    .answer-photos {
+        margin-top: 10px;
+    }
+    
+    .photo-item {
+        display: inline-block;
+        margin: 5px;
+    }
+    
+    .photo-preview {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .mark-as-read-btn {
+        background: #007cba;
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+    }
+    
+    .mark-as-read-btn:hover {
+        background: #0056b3;
+    }
+    
+    .mark-as-read-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+    
+    .loading {
+        text-align: center;
+        padding: 20px;
+        color: #6c757d;
+    }
+    
+    .pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+    }
+    
+    .pagination a, .pagination span {
+        padding: 8px 12px;
+        margin: 0 4px;
+        text-decoration: none;
+        border: 1px solid #ddd;
+        color: #007cba;
+    }
+    
+    .pagination a:hover {
+        background-color: #f0f0f0;
+    }
+    
+    .pagination .current {
+        background-color: #007cba;
+        color: white;
+    }
+    
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.8);
+    }
+    
+    .modal-content {
+        margin: auto;
+        display: block;
+        max-width: 80%;
+        max-height: 80%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+    
+    .close {
+        position: absolute;
+        top: 15px;
+        right: 35px;
+        color: #f1f1f1;
+        font-size: 40px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+    }
+    
+    .empty-state i {
+        font-size: 48px;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+    
+    /* Autocomplete styles */
+    .autocomplete-container {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+    }
+    
+    .autocomplete-list {
+        position: absolute;
+        z-index: 1000;
+        background: white;
+        border: 1px solid #ccc;
+        border-top: none;
+        max-height: 200px;
+        overflow-y: auto;
+        width: 100%;
+        display: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-radius: 0 0 4px 4px;
+    }
+    
+    .autocomplete-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+        transition: background-color 0.2s;
+    }
+    
+    .autocomplete-item:hover, .autocomplete-item.active {
+        background-color: #f0f8ff;
+    }
+    
+    .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+    
+    #task-dropdown {
+        display: block;
+        margin-top: 5px;
+        max-height: 150px;
+        overflow-y: auto;
+        width: 100%;
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+    }
+</style>
+
+<div class="module">
+    <!-- Filter Section -->
+    <div class="filter-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3>Фильтры</h3>
+            <a href="{% url 'admin:tasks_surveyanswer_changelist' %}" class="button">Сбросить фильтры</a>
+        </div>
+        <form method="GET" id="filter-form">
+            <div class="filter-row compact" style="flex-wrap: wrap;">
+                <div class="filter-item" style="min-width: 180px; max-width: 220px;">
+                    <label for="client-search">Клиент:</label>
+                    <div class="autocomplete-container">
+                        <input type="text" id="client-search" name="client_search" placeholder="Поиск..." value="{{ current_filters.client_search|default:'' }}">
+                        <div id="client-autocomplete-list" class="autocomplete-list"></div>
+                    </div>
+                    <select name="client" id="client-select" style="display:none;">
+                        <option value="">Все клиенты</option>
+                        {% for client in clients %}
+                            <option value="{{ client.id }}" {% if current_filters.client|add:"0" == client.id %}selected{% endif %}>
+                                {{ client.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" class="button" onclick="clearClientSearch()" style="margin-top: 5px;">Очистить данные</button>
+                </div>
+                
+                <div class="filter-item" style="min-width: 180px; max-width: 220px;">
+                    <label for="task-search">Задача:</label>
+                    <div class="autocomplete-container">
+                        <input type="text" id="task-search" name="task_search" placeholder="Поиск..." value="{{ current_filters.task_search|default:'' }}">
+                        <div id="task-autocomplete-list" class="autocomplete-list"></div>
+                    </div>
+                    <select name="task" id="task-select" style="display:none;">
+                        <option value="">Все задачи</option>
+                        {% for task in tasks %}
+                            <option value="{{ task.id }}" {% if current_filters.task|add:"0" == task.id %}selected{% endif %}>
+                                {{ task.title }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <!-- Dropdown list for tasks with scroll -->
+                    <select name="task_dropdown" id="task-dropdown" onchange="selectTaskFromDropdown(this)">
+                        <option value="">Выберите задачу...</option>
+                        {% for task in tasks|slice:":8" %}
+                            <option value="{{ task.id }}" {% if current_filters.task|add:"0" == task.id %}selected{% endif %}>
+                                {{ task.title }}
+                            </option>
+                        {% endfor %}
+                        {% if tasks|length > 8 %}
+                            <option value="" disabled>... и еще {{ tasks|length|add:"-8" }} задач(и)</option>
+                        {% endif %}
+                    </select>
+                </div>
+                
+                <div class="filter-item" style="min-width: 160px; max-width: 200px;">
+                    <label for="user">Сотрудник:</label>
+                    <select name="user" id="user-select">
+                        <option value="">Все сотрудники</option>
+                        {% for user in users %}
+                            <option value="{{ user.id }}" {% if current_filters.user|add:"0" == user.id %}selected{% endif %}>
+                                {{ user.get_full_name|default:user.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-item" style="min-width: 160px; max-width: 200px;">
+                    <label for="moderator">Модератор:</label>
+                    <select name="moderator" id="moderator-select">
+                        <option value="">Все модераторы</option>
+                        {% for user in moderators %}
+                            <option value="{{ user.id }}" {% if current_filters.moderator|add:"0" == user.id %}selected{% endif %}>
+                                {{ user.get_full_name|default:user.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-item" style="min-width: 180px; max-width: 200px;">
+                    <label for="task_type">Тип задачи:</label>
+                    <select name="task_type" id="task_type-select">
+                        <option value="">Все типы</option>
+                        <option value="SURVEY" {% if current_filters.task_type == 'SURVEY' %}selected{% endif %}>Анкета</option>
+                        <option value="EQUIPMENT_PHOTO" {% if current_filters.task_type == 'EQUIPMENT_PHOTO' %}selected{% endif %}>Фотоотчет по оборудованию</option>
+                        <option value="SIMPLE_PHOTO" {% if current_filters.task_type == 'SIMPLE_PHOTO' %}selected{% endif %}>Фотоотчет простой</option>
+                    </select>
+                </div>
+                
+                <div class="filter-item" style="min-width: 140px; max-width: 160px;">
+                    <label for="date_filter">Дата:</label>
+                    <select name="date_filter" id="date_filter-select">
+                        <option value="">Все даты</option>
+                        <option value="today" {% if current_filters.date_filter == 'today' %}selected{% endif %}>Сегодня</option>
+                        <option value="yesterday" {% if current_filters.date_filter == 'yesterday' %}selected{% endif %}>Вчера</option>
+                        <option value="week" {% if current_filters.date_filter == 'week' %}selected{% endif %}>Неделя</option>
+                    </select>
+                </div>
+                
+                <div class="filter-item" style="min-width: 140px;">
+                    <label for="date_from">С даты:</label>
+                    <input type="date" name="date_from" id="date_from" value="{{ current_filters.date_from|default:'' }}">
+                </div>
+                
+                <div class="filter-item" style="min-width: 140px;">
+                    <label for="date_to">По дату:</label>
+                    <input type="date" name="date_to" id="date_to" value="{{ current_filters.date_to|default:'' }}">
+                </div>
+            </div>
+            
+            <div class="filter-buttons">
+                <button type="button" class="default" onclick="loadGroupedAnswers()">Применить фильтры</button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Export Section -->
+    <div class="export-section">
+        <h3>Экспорт данных</h3>
+        <p>Выберите задачу для экспорта всех ответов в Excel:</p>
+        <select id="export-task-select">
+            <option value="">Выберите задачу...</option>
+            {% for task in tasks %}
+                <option value="{{ task.id }}">{{ task.title }}</option>
+            {% endfor %}
+        </select>
+        <button onclick="exportToExcel()" class="default">Экспортировать в Excel</button>
+    </div>
+    
+    <!-- Link to Tasks Page -->
+    <div style="margin-top: 20px; padding: 10px; background: #f0f8ff; border: 1px solid #b0d4ff; border-radius: 4px;">
+        <a href="{% url 'admin:tasks_task_changelist' %}" style="display: inline-block; padding: 8px 15px; background: #007cba; color: white; text-decoration: none; border-radius: 3px;">Перейти на страницу задач</a>
+    </div>
+    
+    <!-- Grouped Answers Container -->
+    <div id="grouped-answers-container">
+        <div class="loading" id="loading">
+            Загрузка ответов...
+        </div>
+        <div id="answers-list"></div>
+    </div>
+    
+    <!-- Pagination (if needed) -->
+    <div class="pagination" id="pagination" style="display: none;">
+        <!-- Will be populated by JavaScript -->
+    </div>
+</div>
+
+<!-- Modal for image preview -->
+<div id="image-modal" class="modal">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <img class="modal-content" id="modal-img">
+</div>
+
+<script>
+let currentAnswers = [];
+let currentPage = 1;
+const answersPerPage = 10;
+
+// Load grouped answers on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadGroupedAnswers();
+    // Initialize synchronization after page load
+    setTimeout(syncTaskDropdownWithSearch, 100); // Small delay to ensure elements are rendered
+    setTimeout(updateTaskDropdownFromFilters, 150); // Additional delay to sync with URL filters
+});
+
+function loadGroupedAnswers() {
+    // Show loading indicator
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('answers-list').innerHTML = '';
+    
+    // Get filter parameters from form
+    const filters = new URLSearchParams();
+    const form = document.getElementById('filter-form');
+    const formData = new FormData(form);
+    
+    for (let [key, value] of formData.entries()) {
+        if (value) {
+            // Map form field names to API parameter names
+            if (key === 'client') {
+                filters.append('clientId', value);
+            } else if (key === 'task') {
+                filters.append('taskId', value);
+            } else if (key === 'user') {
+                filters.append('userId', value);
+            } else {
+                filters.append(key, value);
+            }
+        }
+    }
+    
+    // Make API request
+    fetch(`/admin/tasks/surveyanswer/api/grouped-answers/?${filters.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            currentAnswers = data.results || [];
+            renderAnswers();
+        })
+        .catch(error => {
+            console.error('Error loading grouped answers:', error);
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('answers-list').innerHTML = '<div class="empty-state">Ошибка загрузки данных</div>';
+        });
+}
+
+function renderAnswers() {
+    const container = document.getElementById('answers-list');
+    const loading = document.getElementById('loading');
+    
+    loading.style.display = 'none';
+    
+    if (currentAnswers.length === 0) {
+        container.innerHTML = '<div class="empty-state"><i>📋</i><h3>Нет данных</h3><p>Нет ответов, соответствующих выбранным фильтрам</p></div>';
+        return;
+    }
+    
+    // Calculate pagination
+    const totalPages = Math.ceil(currentAnswers.length / answersPerPage);
+    const startIndex = (currentPage - 1) * answersPerPage;
+    const endIndex = startIndex + answersPerPage;
+    const pageAnswers = currentAnswers.slice(startIndex, endIndex);
+    
+    let html = '';
+    
+    pageAnswers.forEach(answerGroup => {
+        const isNew = answerGroup.isNew;
+        const isRead = answerGroup.isRead;
+        const readAt = answerGroup.readAt ? new Date(answerGroup.readAt).toLocaleString() : null;
+        
+        html += `
+        <div class="answer-card" data-id="${answerGroup.id}">
+            <div class="answer-card-header ${isNew ? 'new' : isRead ? 'read' : ''}" onclick="toggleCard('${answerGroup.id}')">
+                <h4>
+                    <span class="task-name">${answerGroup.taskName}</span> 
+                    <span class="client-name">| ${answerGroup.clientName}</span> 
+                    <span class="user-name">| ${answerGroup.userName}</span> 
+                    <span class="date-created">| ${new Date(answerGroup.dateCreated).toLocaleString()}</span>
+                </h4>
+                <div class="labels">
+                    ${isNew ? '<span class="label label-new">Новая</span>' : ''}
+                    ${isRead ? '<span class="label label-read">Обработано</span>' : ''}
+                </div>
+            </div>
+            <div class="answer-card-content" id="content-${answerGroup.id}">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div>
+                        <strong>Задача:</strong> ${answerGroup.taskName}<br>
+                        <strong>Клиент:</strong> ${answerGroup.clientName}<br>
+                        <strong>Сотрудник:</strong> ${answerGroup.userName}<br>
+                        <strong>Модератор:</strong> ${answerGroup.moderatorName}<br>
+                        <strong>Дата:</strong> ${new Date(answerGroup.dateCreated).toLocaleString()}
+                    </div>
+                    <button class="mark-as-read-btn" onclick="markAsRead('${answerGroup.id}', event)" ${isRead ? 'disabled' : ''}>
+                        ${isRead ? 'Обработано' : 'Отметить, как \"Обработано\"'}
+                    </button>
+                </div>
+                
+                <div class="answers-list">
+                    ${answerGroup.answers.map(answer => `
+                        <div class="answer-item">
+                            <div class="question-text">${answer.question}</div>
+                            <div class="answer-type">Тип: ${answer.questionType}</div>
+                            ${answer.selectedChoices.length > 0 ? 
+                                `<div class="answer-choices">Выбранные варианты: ${answer.selectedChoices.join(', ')}</div>` : ''}
+                            ${answer.textAnswer ? 
+                                `<div class="answer-text">${answer.textAnswer}</div>` : ''}
+                            ${answer.photos.length > 0 ? 
+                                `<div class="answer-photos">
+                                    ${answer.photos.map(photo => `
+                                        <div class="photo-item">
+                                            <img src="${photo.url}" alt="Фото" class="photo-preview" onclick="showModal('${photo.url}', event)">
+                                            <div style="font-size: 11px; text-align: center; margin-top: 2px;">${photo.name}</div>
+                                        </div>
+                                    `).join('')}
+                                </div>` : ''}
+                            <div style="font-size: 12px; color: #999;">Дата ответа: ${new Date(answer.createdAt).toLocaleString()}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    
+    // Update pagination
+    updatePagination(totalPages);
+}
+
+function toggleCard(answerId) {
+    const content = document.getElementById(`content-${answerId}`);
+    const card = document.querySelector(`[data-id="${answerId}"]`);
+    
+    if (content.classList.contains('expanded')) {
+        content.classList.remove('expanded');
+        card.classList.remove('expanded');
+    } else {
+        content.classList.add('expanded');
+        card.classList.add('expanded');
+    }
+}
+
+function markAsRead(answerId, event) {
+    event.stopPropagation(); // Prevent card toggle when clicking button
+    
+    fetch('/admin/tasks/surveyanswer/api/mark-as-read/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            answerId: answerId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the UI to show it's read
+            const cardHeader = document.querySelector(`[data-id="${answerId}"] .answer-card-header`);
+            const markBtn = document.querySelector(`[data-id="${answerId}"] .mark-as-read-btn`);
+            
+            cardHeader.classList.remove('new');
+            cardHeader.classList.add('read');
+            
+            markBtn.textContent = 'Обработано';
+            markBtn.disabled = true;
+            
+            // Add read label
+            const labelsContainer = cardHeader.querySelector('.labels');
+            labelsContainer.innerHTML += '<span class="label label-read">Обработано</span>';
+            
+            // Update the data in currentAnswers array
+            const answerIndex = currentAnswers.findIndex(a => a.id === answerId);
+            if (answerIndex !== -1) {
+                currentAnswers[answerIndex].isRead = true;
+                currentAnswers[answerIndex].readAt = data.readAt;
+            }
+            
+            alert('Статус прочтения обновлен');
+        } else {
+            alert('Ошибка: ' + (data.message || 'Не удалось отметить как прочитанное'));
+        }
+    })
+    .catch(error => {
+        console.error('Error marking as read:', error);
+        alert('Ошибка при отметке как прочитанное');
+    });
+}
+
+function showModal(imageSrc, event) {
+    event.stopPropagation(); // Prevent card toggle when clicking photo
+    const modal = document.getElementById('image-modal');
+    const modalImg = document.getElementById('modal-img');
+
+    modal.style.display = 'block';
+    modalImg.src = imageSrc;
+}
+
+function closeModal() {
+    const modal = document.getElementById('image-modal');
+    modal.style.display = 'none';
+}
+
+function exportToExcel() {
+    const taskId = document.getElementById('export-task-select').value;
+    if (!taskId) {
+        alert('Пожалуйста, выберите задачу для экспорта');
+        return;
+    }
+
+    window.location.href = '/admin/tasks/surveyanswer/export-excel/' + taskId + '/';
+}
+
+function getCSRFToken() {
+    // Try multiple methods to get CSRF token
+    const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (tokenInput) {
+        return tokenInput.value;
+    }
+    
+    // Try to get from meta tag
+    const csrfTokenMeta = document.querySelector('meta[name=csrf-token]');
+    if (csrfTokenMeta) {
+        return csrfTokenMeta.getAttribute('content');
+    }
+    
+    // Fallback: try to get from cookie
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return value;
+        }
+    }
+    
+    // If nothing works, return empty string
+    return '';
+}
+
+function updatePagination(totalPages) {
+    const paginationContainer = document.getElementById('pagination');
+    
+    if (totalPages <= 1) {
+        paginationContainer.style.display = 'none';
+        return;
+    }
+    
+    let html = `
+        <a href="#" onclick="changePage(1); return false;">&laquo; первая</a>
+        <a href="#" onclick="changePage(${Math.max(1, currentPage - 1)}); return false;">предыдущая</a>
+    `;
+    
+    // Show page numbers with gaps
+    for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+        if (i === currentPage) {
+            html += `<span class="current">${i}</span>`;
+        } else {
+            html += `<a href="#" onclick="changePage(${i}); return false;">${i}</a>`;
+        }
+    }
+    
+    html += `
+        <a href="#" onclick="changePage(${Math.min(totalPages, currentPage + 1)}); return false;">следующая</a>
+        <a href="#" onclick="changePage(${totalPages}); return false;">последняя &raquo;</a>
+    `;
+    
+    paginationContainer.innerHTML = html;
+    paginationContainer.style.display = 'flex';
+}
+
+function changePage(page) {
+    currentPage = page;
+    renderAnswers();
+}
+
+// Function to handle task selection from dropdown
+function selectTaskFromDropdown(selectElement) {
+    const selectedTaskId = selectElement.value;
+    const taskSelect = document.getElementById('task-select');
+    const taskSearch = document.getElementById('task-search');
+    
+    // Update the hidden select element
+    taskSelect.value = selectedTaskId;
+    
+    // Update the search field to show the selected task title
+    if (selectedTaskId) {
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        taskSearch.value = selectedOption.text;
+    } else {
+        taskSearch.value = '';
+    }
+    
+    // Apply the filter
+    loadGroupedAnswers();
+}
+
+// Synchronize task dropdown with search field
+function syncTaskDropdownWithSearch() {
+    const taskSearch = document.getElementById('task-search');
+    const taskDropdown = document.getElementById('task-dropdown');
+    const taskSelect = document.getElementById('task-select');
+    
+    // When search field changes, update dropdown selection
+    if (taskSelect.value) {
+        // Find matching option in dropdown
+        for (let i = 0; i < taskDropdown.options.length; i++) {
+            if (taskDropdown.options[i].value === taskSelect.value) {
+                taskDropdown.selectedIndex = i;
+                break;
+            }
+        }
+    } else {
+        taskDropdown.selectedIndex = 0; // Select default option
+    }
+}
+
+// Update dropdown when filters change
+function updateTaskDropdownFromFilters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const taskIdFromUrl = urlParams.get('task');
+    
+    if (taskIdFromUrl) {
+        const taskDropdown = document.getElementById('task-dropdown');
+        for (let i = 0; i < taskDropdown.options.length; i++) {
+            if (taskDropdown.options[i].value === taskIdFromUrl) {
+                taskDropdown.selectedIndex = i;
+                break;
+            }
+        }
+    }
+}
+
+// Close modal when clicking outside the image
+document.getElementById('image-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeModal();
+    }
+});
+
+// Handle Enter key in search fields to reload data
+document.getElementById('filter-form').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        loadGroupedAnswers();
+    }
+});
+
+// Client search with autocomplete - case insensitive
+const clientSearchInput = document.getElementById('client-search');
+if (clientSearchInput) {
+    let currentFocus = -1;
+    let autocompleteItems = [];
+    
+    clientSearchInput.addEventListener('input', function() {
+        const searchTerm = this.value.trim();
+        const autocompleteList = document.getElementById('client-autocomplete-list');
+        
+        // Clear previous items
+        autocompleteList.innerHTML = '';
+        currentFocus = -1;
+        
+        if (searchTerm.length < 1) {
+            autocompleteList.style.display = 'none';
+            // If search is cleared, clear the hidden select as well
+            const select = document.getElementById('client-select');
+            select.value = '';
+            return;
+        }
+        
+        // Fetch autocomplete suggestions - use the correct URL pattern
+        fetch(`${window.location.origin}/admin/tasks/surveyanswer/autocomplete_clients/?q=${encodeURIComponent(searchTerm)}`)
+            .then(response => response.json())
+            .then(data => {
+                autocompleteItems = data.clients || [];
+                
+                if (autocompleteItems.length === 0) {
+                    autocompleteList.style.display = 'none';
+                    return;
+                }
+                
+                autocompleteList.style.display = 'block';
+                
+                autocompleteItems.forEach((client, index) => {
+                    const item = document.createElement('div');
+                    item.classList.add('autocomplete-item');
+                    item.innerHTML = highlightText(client.name, searchTerm);
+                    item.dataset.clientId = client.id;
+                    item.dataset.clientName = client.name;
+                    
+                    item.addEventListener('click', function() {
+                        clientSearchInput.value = this.dataset.clientName;
+                        autocompleteList.innerHTML = '';
+                        autocompleteList.style.display = 'none';
+                        currentFocus = -1;
+                        
+                        // Update the hidden select element with the exact client ID
+                        const select = document.getElementById('client-select');
+                        select.value = this.dataset.clientId;
+                        
+                        // Apply the filter
+                        loadGroupedAnswers();
+                    });
+                    
+                    autocompleteList.appendChild(item);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching autocomplete suggestions:', error);
+            });
+    });
+    
+    // Handle keyboard navigation
+    clientSearchInput.addEventListener('keydown', function(e) {
+        const autocompleteList = document.getElementById('client-autocomplete-list');
+        const items = autocompleteList.querySelectorAll('.autocomplete-item');
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentFocus = (currentFocus + 1) % items.length;
+            updateActiveItem(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentFocus = (currentFocus - 1 + items.length) % items.length;
+            updateActiveItem(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (currentFocus >= 0 && items[currentFocus]) {
+                items[currentFocus].click();
+            }
+        } else if (e.key === 'Escape') {
+            autocompleteList.style.display = 'none';
+            currentFocus = -1;
+        }
+    });
+    
+    // Hide autocomplete when clicking outside
+    document.addEventListener('click', function(e) {
+        if (e.target !== clientSearchInput && !e.target.closest('.autocomplete-container')) {
+            const autocompleteList = document.getElementById('client-autocomplete-list');
+            autocompleteList.style.display = 'none';
+            currentFocus = -1;
+        }
+    });
+    
+    // Function to highlight matching text
+    function highlightText(text, highlight) {
+        if (!highlight) return text;
+        const regex = new RegExp(`(${escapeRegExp(highlight)})`, 'gi');
+        return text.replace(regex, '<strong>$1</strong>');
+    }
+    
+    // Function to escape special characters for regex
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    
+    // Function to update active item
+    function updateActiveItem(items) {
+        items.forEach((item, index) => {
+            if (index === currentFocus) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+    }
+}
+
+// Task search with autocomplete - case insensitive
+const taskSearchInput = document.getElementById('task-search');
+if (taskSearchInput) {
+    let currentTaskFocus = -1;
+    let taskAutocompleteItems = [];
+    
+    taskSearchInput.addEventListener('input', function() {
+        const searchTerm = this.value.trim();
+        const autocompleteList = document.getElementById('task-autocomplete-list');
+        
+        // Clear previous items
+        autocompleteList.innerHTML = '';
+        currentTaskFocus = -1;
+        
+        if (searchTerm.length < 1) {
+            autocompleteList.style.display = 'none';
+            // If search is cleared, clear the hidden select as well
+            const select = document.getElementById('task-select');
+            select.value = '';
+            // Also clear the dropdown
+            const taskDropdown = document.getElementById('task-dropdown');
+            taskDropdown.selectedIndex = 0;
+            return;
+        }
+        
+        // Fetch autocomplete suggestions
+        fetch(`${window.location.origin}/admin/tasks/surveyanswer/autocomplete_tasks/?q=${encodeURIComponent(searchTerm)}`)
+            .then(response => response.json())
+            .then(data => {
+                taskAutocompleteItems = data.tasks || [];
+                
+                if (taskAutocompleteItems.length === 0) {
+                    autocompleteList.style.display = 'none';
+                    return;
+                }
+                
+                autocompleteList.style.display = 'block';
+                
+                taskAutocompleteItems.forEach((task, index) => {
+                    const item = document.createElement('div');
+                    item.classList.add('autocomplete-item');
+                    item.innerHTML = highlightText(task.title, searchTerm);
+                    item.dataset.taskId = task.id;
+                    item.dataset.taskTitle = task.title;
+                    
+                    item.addEventListener('click', function() {
+                        taskSearchInput.value = this.dataset.taskTitle;
+                        autocompleteList.innerHTML = '';
+                        autocompleteList.style.display = 'none';
+                        currentTaskFocus = -1;
+                        
+                        // Update the hidden select element with the exact task ID
+                        const select = document.getElementById('task-select');
+                        select.value = this.dataset.taskId;
+
+                        // Update the dropdown selection to match
+                        const taskDropdown = document.getElementById('task-dropdown');
+                        for (let i = 0; i < taskDropdown.options.length; i++) {
+                            if (taskDropdown.options[i].value === this.dataset.taskId) {
+                                taskDropdown.selectedIndex = i;
+                                break;
+                            }
+                        }
+                        
+                        // Apply the filter
+                        loadGroupedAnswers();
+                    });
+                    
+                    autocompleteList.appendChild(item);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching task autocomplete suggestions:', error);
+            });
+    });
+    
+    // Handle keyboard navigation
+    taskSearchInput.addEventListener('keydown', function(e) {
+        const autocompleteList = document.getElementById('task-autocomplete-list');
+        const items = autocompleteList.querySelectorAll('.autocomplete-item');
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentTaskFocus = (currentTaskFocus + 1) % items.length;
+            updateTaskActiveItem(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentTaskFocus = (currentTaskFocus - 1 + items.length) % items.length;
+            updateTaskActiveItem(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (currentTaskFocus >= 0 && items[currentTaskFocus]) {
+                items[currentTaskFocus].click();
+            }
+        } else if (e.key === 'Escape') {
+            autocompleteList.style.display = 'none';
+            currentTaskFocus = -1;
+        }
+    });
+    
+    // Hide autocomplete when clicking outside
+    document.addEventListener('click', function(e) {
+        if (e.target !== taskSearchInput && !e.target.closest('.autocomplete-container')) {
+            const autocompleteList = document.getElementById('task-autocomplete-list');
+            autocompleteList.style.display = 'none';
+            currentTaskFocus = -1;
+        }
+    });
+    
+    // Function to update active task item
+    function updateTaskActiveItem(items) {
+        items.forEach((item, index) => {
+            if (index === currentTaskFocus) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+    }
+}
+
+// Function to clear client search field and related selections
+function clearClientSearch() {
+    const clientSearchInput = document.getElementById('client-search');
+    const clientSelect = document.getElementById('client-select');
+    const autocompleteList = document.getElementById('client-autocomplete-list');
+    
+    // Clear the search input
+    clientSearchInput.value = '';
+    
+    // Clear the hidden select
+    clientSelect.value = '';
+    
+    // Hide autocomplete list
+    autocompleteList.style.display = 'none';
+    
+    // Reload answers to apply the cleared filter
+    loadGroupedAnswers();
+}
+</script>
+{% endblock %}
