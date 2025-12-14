@@ -168,7 +168,18 @@ SIMPLE_JWT = {
 # Security warning for short passwords
 print("WARNING: Password length is set to 4 characters. This is highly insecure for production environments.")
 
-# Additional settings for localization support
+# Internationalization
+# https://docs.djangoproject.com/en/4.2/topics/i18n/
+
+LANGUAGE_CODE = 'ru-ru'  # Russian interface as requested
+
+TIME_ZONE = 'Europe/Moscow'  # Изменено на Московское время
+
+USE_I18N = True
+
+USE_TZ = True
+
+# Добавьте эти строки для поддержки локализации
 LOCALE_PATHS = [
     BASE_DIR / 'locale',
 ]
@@ -177,6 +188,8 @@ LANGUAGES = [
     ('ru', 'Russian'),
 ]
 
+STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
