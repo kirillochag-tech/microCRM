@@ -523,20 +523,58 @@ def getGroupedAnswers(request):
     if client_id:
         answers = answers.filter(client_id=client_id)
     
-    # Group answers by task, client, and user
+    # Group answers by survey submission (same task, client, user, and close timestamp)
     grouped_data = {}
-    for answer in answers:
-        key = f"{answer.question.task.id}_{answer.client.id}_{answer.user.id}_{answer.created_at.date()}"
+    
+    # Convert to list and sort by timestamp to identify submission boundaries
+    answers_list = list(answers)
+    answers_list.sort(key=lambda x: x.created_at)
+    
+    # Process answers to group them by submission
+    for answer in answers_list:
+        # Find or create a submission group based on time proximity
+        current_user = answer.user
+        current_task = answer.question.task
+        current_client = answer.client
+        current_time = answer.created_at
         
-        if key not in grouped_data:
+        # Look for an existing group for this user/task/client that's close in time
+        found_group = False
+        for existing_key, group_data in grouped_data.items():
+            if (group_data['taskName'] == current_task.title and 
+                group_data['clientName'] == current_client.name and 
+                group_data['userName'] == (current_user.get_full_name() or current_user.username)):
+                
+                # Check if this answer is close enough in time to belong to this group
+                # (within 1 minute threshold)
+                time_diff = abs((current_time - group_data['dateCreated']).total_seconds())
+                if time_diff <= 60:  # 60 seconds threshold
+                    # Add this answer to the existing group
+                    answer_details = {
+                        'question': answer.question.question_text,
+                        'questionType': answer.question.get_question_type_display(),
+                        'selectedChoices': [choice.choice_text for choice in answer.selected_choices.all()],
+                        'textAnswer': answer.text_answer,
+                        'photos': [{'id': photo.id, 'url': photo.photo.url, 'name': photo.photo.name.split('/')[-1]} for photo in answer.photos.all()],
+                        'createdAt': answer.created_at,
+                        'questionId': answer.question.id
+                    }
+                    grouped_data[existing_key]['answers'].append(answer_details)
+                    found_group = True
+                    break
+        
+        if not found_group:
+            # Create a new group for this submission
+            key = f"{current_task.id}_{current_client.id}_{current_user.id}_{current_time.strftime('%Y%m%d_%H%M%S_%f')}"
+            
             # Check if this group has been marked as read
             from .models import SurveyAnswerGroupReadStatus
             try:
                 read_status = SurveyAnswerGroupReadStatus.objects.get(
-                    task=answer.question.task,
-                    client=answer.client,
-                    user=answer.user,
-                    date_created=answer.created_at.date()
+                    task=current_task,
+                    client=current_client,
+                    user=current_user,
+                    date_created=current_time.date()
                 )
                 is_read = read_status.read_at is not None
                 read_at = read_status.read_at.strftime('%Y-%m-%d %H:%M:%S') if read_status.read_at else None
@@ -546,28 +584,28 @@ def getGroupedAnswers(request):
             
             grouped_data[key] = {
                 'id': key,
-                'taskName': answer.question.task.title,
-                'clientName': answer.client.name,
-                'userName': answer.user.get_full_name() or answer.user.username,
-                'dateCreated': answer.created_at,
-                'moderatorName': answer.question.task.created_by.get_full_name() or answer.question.task.created_by.username if answer.question.task.created_by else '-',
+                'taskName': current_task.title,
+                'clientName': current_client.name,
+                'userName': current_user.get_full_name() or current_user.username,
+                'dateCreated': current_time,
+                'moderatorName': current_task.created_by.get_full_name() or current_task.created_by.username if current_task.created_by else '-',
                 'answers': [],
-                'isNew': answer.created_at > twenty_four_hours_ago and not is_read,
+                'isNew': current_time > twenty_four_hours_ago and not is_read,
                 'isRead': is_read,
                 'readAt': read_at,
             }
-        
-        # Add answer details
-        answer_details = {
-            'question': answer.question.question_text,
-            'questionType': answer.question.get_question_type_display(),
-            'selectedChoices': [choice.choice_text for choice in answer.selected_choices.all()],
-            'textAnswer': answer.text_answer,
-            'photos': [{'id': photo.id, 'url': photo.photo.url, 'name': photo.photo.name.split('/')[-1]} for photo in answer.photos.all()],
-            'createdAt': answer.created_at,
-            'questionId': answer.question.id
-        }
-        grouped_data[key]['answers'].append(answer_details)
+            
+            # Add answer details
+            answer_details = {
+                'question': answer.question.question_text,
+                'questionType': answer.question.get_question_type_display(),
+                'selectedChoices': [choice.choice_text for choice in answer.selected_choices.all()],
+                'textAnswer': answer.text_answer,
+                'photos': [{'id': photo.id, 'url': photo.photo.url, 'name': photo.photo.name.split('/')[-1]} for photo in answer.photos.all()],
+                'createdAt': current_time,
+                'questionId': answer.question.id
+            }
+            grouped_data[key]['answers'].append(answer_details)
     
     # Convert to list and sort by date created (newest first)
     result = list(grouped_data.values())
