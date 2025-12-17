@@ -62,14 +62,16 @@
                                         <a href="{% url 'tasks:task_detail' task.pk %}" class="btn btn-sm btn-primary">{% trans 'Просмотреть' %}</a>
                                         {% if user.role == 'EMPLOYEE' %}
                                             {% if task.task_type == 'SURVEY' %}
-                                                {% if task.status != 'COMPLETED' and task.is_active and (task.target_count == 0 or task.current_count < task.target_count) %}
-                                                    <a href="{% url 'tasks:survey_response' task.pk %}" class="btn btn-sm btn-success">{% trans 'Заполнить' %}</a>
+                                                {% if task.status != 'COMPLETED' and task.is_active %}
+                                                    {% if task.target_count == 0 or task.current_count < task.target_count %}
+                                                        <a href="{% url 'tasks:survey_response' task.pk %}" class="btn btn-sm btn-success">{% trans 'Заполнить' %}</a>
+                                                    {% else %}
+                                                        <button type="button" class="btn btn-sm btn-secondary" disabled>{% trans 'Цель достигнута' %}</button>
+                                                    {% endif %}
                                                 {% elif task.status == 'COMPLETED' %}
                                                     <button type="button" class="btn btn-sm btn-secondary" disabled>{% trans 'Завершена' %}</button>
                                                 {% elif not task.is_active %}
                                                     <button type="button" class="btn btn-sm btn-secondary" disabled>{% trans 'Неактивна' %}</button>
-                                                {% elif task.current_count >= task.target_count %}
-                                                    <button type="button" class="btn btn-sm btn-secondary" disabled>{% trans 'Цель достигнута' %}</button>
                                                 {% else %}
                                                     <button type="button" class="btn btn-sm btn-secondary" disabled>{% trans 'Недоступна' %}</button>
                                                 {% endif %}

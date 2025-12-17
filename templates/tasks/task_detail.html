@@ -85,15 +85,18 @@
                     </div>
                     
                     {% if task.task_type == 'SURVEY' %}
-                        {% if task.status != 'COMPLETED' and task.is_active and (task.target_count == 0 or task.current_count < task.target_count) %}
-                            <a href="{% url 'tasks:survey_response' task.pk %}" class="btn btn-success me-2">{% trans 'Заполнить анкету' %}</a>
+                        {% if task.status != 'COMPLETED' and task.is_active %}
+                            {% if task.target_count == 0 or task.current_count < task.target_count %}
+                                <a href="{% url 'tasks:survey_response' task.pk %}" class="btn btn-success me-2">{% trans 'Заполнить анкету' %}</a>
+                            {% else %}
+                                <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Цель достигнута' %}</button>
+                            {% endif %}
+                        {% elif task.status == 'COMPLETED' %}
+                            <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Завершена' %}</button>
+                        {% elif not task.is_active %}
+                            <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Неактивна' %}</button>
                         {% else %}
-                            <button type="button" class="btn btn-secondary me-2" disabled>
-                                {% if task.status == 'COMPLETED' %}{% trans 'Завершена' %}
-                                {% elif not task.is_active %}{% trans 'Неактивна' %}
-                                {% elif task.current_count >= task.target_count %}{% trans 'Цель достигнута' %}
-                                {% else %}{% trans 'Недоступна' %}{% endif %}
-                            </button>
+                            <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Недоступна' %}</button>
                         {% endif %}
                     {% elif task.task_type == 'EQUIPMENT_PHOTO' or task.task_type == 'SIMPLE_PHOTO' %}
                         {% if task.status != 'COMPLETED' %}
