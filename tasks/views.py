@@ -142,12 +142,13 @@ class SurveyResponseView(LoginRequiredMixin, FormView):
         # Для анкет — увеличиваем счетчик, но остаемся активными
         elif task.task_type == TaskType.SURVEY:
             task.current_count += 1
-            # Проверяем, достигнут ли план
+            # Не меняем статус и активность до тех пор, пока модератор не завершит задачу
+            # Проверяем, достигнут ли план - если да, меняем статус на "На проверке", но оставляем активной
             if task.target_count > 0 and task.current_count >= task.target_count:
-                task.status = TaskStatus.ON_CHECK
-                task.is_active = False  # Анкета становится неактивной только при достижении плана
-            # Иначе остаемся в статусе SENT и активными
-        
+                if task.status != TaskStatus.COMPLETED:
+                    task.status = TaskStatus.ON_CHECK
+                # Задача остается активной, чтобы сотрудник мог продолжать заполнять
+            
         task.save()
         messages.success(self.request, _("Анкета успешно заполнена!"))
         return redirect('tasks:task_list')
