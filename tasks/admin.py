@@ -41,12 +41,13 @@ class SurveyQuestionInline(NestedStackedInline):
         models.TextField: {'widget': Textarea(attrs={'rows': 3, 'cols': 80})},
     }
 
-@admin.register(SurveyQuestionChoice)
-class SurveyQuestionChoiceAdmin(admin.ModelAdmin):
-    list_display = ('question', 'choice_text', 'order')
-    list_filter = ('question__task', 'question')
-    search_fields = ('choice_text', 'question__question_text')
-    ordering = ('question', 'order')
+# SurveyQuestionChoice is hidden from admin as per requirements
+# @admin.register(SurveyQuestionChoice)
+# class SurveyQuestionChoiceAdmin(admin.ModelAdmin):
+#     list_display = ('question', 'choice_text', 'order')
+#     list_filter = ('question__task', 'question')
+#     search_fields = ('choice_text', 'question__question_text')
+#     ordering = ('question', 'order')
 
 @admin.register(Task)
 class TaskAdmin(NestedModelAdmin):
@@ -542,19 +543,20 @@ class SurveyAnswerGroupReadStatusAdmin(admin.ModelAdmin):
 class SurveyAnswerAdminWrapper(SurveyAnswerAdmin):
     pass
 
-@admin.register(SurveyAnswerPhoto)
-class SurveyAnswerPhotoAdmin(admin.ModelAdmin):
-    list_display = ('answer', 'photo_thumbnail', 'created_at')
-    readonly_fields = ('answer', 'photo', 'created_at')
-    
-    def has_add_permission(self, request):
-        return False
-    
-    def photo_thumbnail(self, obj):
-        if obj.photo:
-            return format_html('<img src="{}" style="width: 50px; height: 50px; object-fit: cover;" />', obj.photo.url)
-        return '-'
-    photo_thumbnail.short_description = _('Миниатюра')
+# SurveyAnswerPhoto is hidden from admin as per requirements
+# @admin.register(SurveyAnswerPhoto)
+# class SurveyAnswerPhotoAdmin(admin.ModelAdmin):
+#     list_display = ('answer', 'photo_thumbnail', 'created_at')
+#     readonly_fields = ('answer', 'photo', 'created_at')
+#     
+#     def has_add_permission(self, request):
+#         return False
+#     
+#     def photo_thumbnail(self, obj):
+#         if obj.photo:
+#             return format_html('<img src="{}" style="width: 50px; height: 50px; object-fit: cover;" />', obj.photo.url)
+#         return '-'
+#     photo_thumbnail.short_description = _('Миниатюра')
 
 @admin.register(PhotoReport)
 class PhotoReportAdmin(admin.ModelAdmin):
@@ -562,14 +564,15 @@ class PhotoReportAdmin(admin.ModelAdmin):
     readonly_fields = ('task', 'client', 'address', 'stand_count', 'comment', 'created_by')
     list_per_page = 20
 
-@admin.register(PhotoReportItem)
-class PhotoReportItemAdmin(admin.ModelAdmin):
-    list_display = ('report', 'photo_thumbnail', 'quality_score', 'is_accepted', 'created_at')
-    readonly_fields = ('report', 'photo', 'description', 'quality_score', 'is_accepted', 'created_at')
-    list_per_page = 20
-    
-    def photo_thumbnail(self, obj):
-        if obj.photo:
-            return format_html('<img src="{}" style="width: 50px; height: 50px; object-fit: cover;" />', obj.photo.url)
-        return '-'
-    photo_thumbnail.short_description = _('Миниатюра')
+# PhotoReportItem is hidden from admin as per requirements
+# @admin.register(PhotoReportItem)
+# class PhotoReportItemAdmin(admin.ModelAdmin):
+#     list_display = ('report', 'photo_thumbnail', 'quality_score', 'is_accepted', 'created_at')
+#     readonly_fields = ('report', 'photo', 'description', 'quality_score', 'is_accepted', 'created_at')
+#     list_per_page = 20
+#     
+#     def photo_thumbnail(self, obj):
+#         if obj.photo:
+#             return format_html('<img src="{}" style="width: 50px; height: 50px; object-fit: cover;" />', obj.photo.url)
+#         return '-'
+#     photo_thumbnail.short_description = _('Миниатюра')
