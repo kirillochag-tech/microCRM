@@ -78,22 +78,42 @@
             
             <!-- Действия -->
             <div class="mb-4">
-                {% if user.role == 'EMPLOYEE' and task.status != 'COMPLETED' %}
+                {% if user.role == 'EMPLOYEE' %}
                     <!-- Отладочная информация -->
                     <div class="alert alert-info mb-3">
                         Тип задачи: {{ task.task_type }} ({{ task.get_task_type_display }})
                     </div>
                     
                     {% if task.task_type == 'SURVEY' %}
-                        <a href="{% url 'tasks:survey_response' task.pk %}" class="btn btn-success me-2">{% trans 'Заполнить анкету' %}</a>
+                        {% if task.status != 'COMPLETED' and task.is_active %}
+                            {% if task.target_count == 0 or task.current_count < task.target_count %}
+                                <a href="{% url 'tasks:survey_response' task.pk %}" class="btn btn-success me-2">{% trans 'Заполнить анкету' %}</a>
+                            {% else %}
+                                <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Цель достигнута' %}</button>
+                            {% endif %}
+                        {% elif task.status == 'COMPLETED' %}
+                            <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Завершена' %}</button>
+                        {% elif not task.is_active %}
+                            <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Неактивна' %}</button>
+                        {% else %}
+                            <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Недоступна' %}</button>
+                        {% endif %}
                     {% elif task.task_type == 'EQUIPMENT_PHOTO' or task.task_type == 'SIMPLE_PHOTO' %}
-                        <a href="#" class="btn btn-success me-2">{% trans 'Загрузить фото' %}</a>
+                        {% if task.status != 'COMPLETED' %}
+                            <a href="#" class="btn btn-success me-2">{% trans 'Загрузить фото' %}</a>
+                        {% else %}
+                            <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Завершено' %}</button>
+                        {% endif %}
                     {% else %}
-                        <!-- Форма для выполнения задачи -->
-                        <form method="post" style="display: inline;">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-success me-2">{% trans 'Выполнить задачу' %}</button>
-                        </form>
+                        {% if task.status != 'COMPLETED' %}
+                            <!-- Форма для выполнения задачи -->
+                            <form method="post" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-success me-2">{% trans 'Выполнить задачу' %}</button>
+                            </form>
+                        {% else %}
+                            <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Завершено' %}</button>
+                        {% endif %}
                     {% endif %}
                 {% endif %}
                 
