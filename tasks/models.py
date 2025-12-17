@@ -139,6 +139,23 @@ class Task(models.Model):
             return min(100, int((self.current_count / self.target_count) * 100))
         return 0
     
+    def can_be_filled_by(self, user):
+        """Проверяет, может ли пользователь заполнить задачу (для анкет)."""
+        if self.task_type != TaskType.SURVEY:
+            return False
+        if user.role != UserRoles.EMPLOYEE:
+            return False
+        # Задача должна быть доступна для просмотра и иметь подходящий статус
+        if not self.can_be_viewed_by(user):
+            return False
+        # Анкету можно заполнять, если она не завершена и не на проверке
+        # и если не достигнут целевой показатель (если он задан)
+        if self.status in [TaskStatus.SENT, TaskStatus.REWORK]:
+            if self.target_count > 0:
+                return self.current_count < self.target_count
+            return True
+        return False
+    
     class Meta:
         verbose_name = _('Задача')
         verbose_name_plural = _('Задачи')

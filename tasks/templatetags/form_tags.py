@@ -39,3 +39,8 @@ def round_to_half_percent(value):
         return f"{rounded:.1f}"
     except (ValueError, TypeError):
         return "0.0"
+
+@register.filter
+def can_be_filled_by(task, user):
+    """Проверяет, может ли пользователь заполнить задачу (для анкет)."""
+    return task.can_be_filled_by(user)

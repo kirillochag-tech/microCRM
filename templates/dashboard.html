@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load i18n %}
 {% load announcement_tags %}
+{% load form_tags %}
 
 {% block content %}
 <div class="container mt-4">
@@ -12,14 +13,55 @@
     </div>
     
     <div class="row mt-4">
-        <div class="col-md-4">
+        <div class="col-md-8">
             <div class="card">
                 <div class="card-header bg-info text-white">
                     <h5 class="mb-0">{% trans 'Активные задачи' %}</h5>
                 </div>
                 <div class="card-body">
-                    <p class="card-text">{% trans 'У вас' %} {{ active_tasks_count }} {% trans 'активных задач' %}</p>
-                    <a href="{% url 'tasks:task_list' %}" class="btn btn-primary w-100">{% trans 'Посмотреть задачи' %}</a>
+                    {% if active_tasks %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>{% trans 'Название' %}</th>
+                                        <th>{% trans 'Тип' %}</th>
+                                        <th>{% trans 'Статус' %}</th>
+                                        <th>{% trans 'Действия' %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for task in active_tasks %}
+                                    <tr>
+                                        <td>{{ task.title }}</td>
+                                        <td>{{ task.get_task_type_display }}</td>
+                                        <td>{{ task.get_status_display }}</td>
+                                        <td>
+                                            {% if user.role == 'EMPLOYEE' %}
+                                                {% if task.task_type == 'SURVEY' %}
+                                                    {% if task.status == 'SENT' or task.status == 'REWORK' %}
+                                                        {% if task.current_count < task.target_count or task.target_count == 0 %}
+                                                            <a href="{% url 'tasks:survey_response' task.pk %}" class="btn btn-sm btn-success">{% trans 'Заполнить' %}</a>
+                                                        {% else %}
+                                                            <button class="btn btn-sm btn-secondary" disabled>{% trans 'Отправлено' %}</button>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <button class="btn btn-sm btn-secondary" disabled>{% trans 'Отправлено' %}</button>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <a href="#" class="btn btn-sm btn-success">{% trans 'Выполнить' %}</a>
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="card-text text-muted">{% trans 'Нет активных задач' %}</p>
+                    {% endif %}
+                    <a href="{% url 'tasks:task_list' %}" class="btn btn-primary w-100 mt-3">{% trans 'Посмотреть все задачи' %}</a>
                 </div>
             </div>
         </div>
