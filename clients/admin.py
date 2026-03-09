@@ -166,7 +166,7 @@ class ClientResource(resources.ModelResource):
         # Step 1: Try to find by code_1c
         if code_1c:
             instance = Client.objects.filter(code_1c=code_1c).first()
-            if instance and name:
+            if instance and name and instance.name != name:
                 instance.name = name
 
         # Step 2: If not found, try to find by name
@@ -186,11 +186,12 @@ class ClientResource(resources.ModelResource):
             result = RowResult()
             result.instance = instance
             result.new_record = False
+            result.errors = []  # No errors - success
             return result
         else:
-            # Not found - skip
+            # Not found - skip with error
             result = RowResult()
-            result.errors = ['Клиент не найден']
+            result.errors = [f'Клиент не найден: {name}']
             return result
 
     def skip_row(self, instance, original, row, import_validation_errors=None):
@@ -219,37 +220,28 @@ class ClientResource(resources.ModelResource):
 
     def after_import_row(self, row, result, **kwargs):
         """
-        After importing each row, log the result.
+        After importing each row, log the result with clear messages.
         """
         code_1c = row.get('code_1c')
         name = row.get('name')
 
         if result.errors:
+            # Error during import - client not found
             result.append_warning_message(
-                f"Ошибка импорта клиента: {name} (код 1С: {code_1c or 'не указан'})"
+                f"[НЕ НАЙДЕН] {name} (код 1С: {code_1c or 'не указан'})"
             )
         else:
-            # Проверяем, была ли это новая запись или обновление
-            # В новых версиях django-import-export атрибут new_record удалён
+            # Successfully imported
             instance = result.instance if hasattr(result, 'instance') else None
             if instance and instance.pk:
-                # Проверяем, было ли это создание нового объекта
-                # Если объект существует и у него есть created_at, проверяем время
-                if hasattr(instance, 'created_at') and instance.created_at:
-                    from django.utils import timezone
-                    from datetime import timedelta
-                    # Если создан в последние 5 минут - это новая запись
-                    if timezone.now() - instance.created_at < timedelta(minutes=5):
-                        result.append_info_message(
-                            f"Создан новый клиент: {name} (код 1С: {code_1c or 'не указан'})"
-                        )
-                    else:
-                        result.append_info_message(
-                            f"Обновлен клиент: {name} (код 1С: {code_1c or 'не указан'})"
-                        )
+                # Check if code was updated
+                if hasattr(instance, 'code_1c') and instance.code_1c == code_1c:
+                    result.append_info_message(
+                        f"[ОБНОВЛЁН] {name} → код 1С: {code_1c}"
+                    )
                 else:
                     result.append_info_message(
-                        f"Обновлен клиент: {name} (код 1С: {code_1c or 'не указан'})"
+                        f"[Б/И] {name} (код 1С: {code_1c or '—'})"
                     )
 
 
