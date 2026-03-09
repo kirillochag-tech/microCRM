@@ -1,0 +1,2002 @@
+{% extends "admin/base.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<script>
+    console.log("DOM Content Loaded script started");
+</script>
+<style>
+    .main-container {
+        display: flex;
+        height: calc(100vh - 150px);
+        gap: 20px;
+    }
+    
+    .filter-container {
+        background: #f8f8f8;
+        padding: 15px;
+        border: 1px solid #ddd;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+    
+    .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-start;
+        margin-bottom: 10px;
+    }
+    
+    .filter-item {
+        display: flex;
+        flex-direction: column;
+        min-width: 150px;
+        max-width: 250px;
+    }
+    
+    .filter-item label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        font-size: 13px;
+    }
+    
+    .filter-item select, .filter-item input {
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+    }
+    
+    .sidebar {
+        flex: 1;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        overflow: auto;
+        background: #f9f9f9;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .sidebar-header {
+        background: #f0f0f0;
+        padding: 10px 15px;
+        border-bottom: 1px solid #ddd;
+        font-weight: bold;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .sidebar-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px;
+    }
+    
+    .photo-report-card {
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        background: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .photo-report-header {
+        padding: 10px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .photo-report-header h4 {
+        margin: 0;
+        font-size: 14px;
+    }
+    
+    .photo-report-content {
+        padding: 10px;
+        display: none;
+    }
+    
+    .photo-report-content.expanded {
+        display: block;
+    }
+    
+    .photo-item {
+        margin: 5px;
+        display: inline-block;
+        position: relative;
+    }
+    
+    .photo-preview {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .status-badge {
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+        color: white;
+    }
+    
+    .status-new {
+        background: #ffc107;
+        color: #212529;
+    }
+    
+    .status-accepted {
+        background: #28a745;
+    }
+    
+    .status-rework {
+        background: #dc3545;
+    }
+    
+    .status-on-check {
+        background: #17a2b8;
+        color: white;
+    }
+    
+    .photo-details {
+        font-size: 12px;
+        color: #666;
+        margin-top: 5px;
+    }
+    
+    .rating-section {
+        margin: 10px 0;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 4px;
+    }
+    
+    .comment-section {
+        margin: 10px 0;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 4px;
+    }
+    
+    .comment-input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        margin: 5px 0;
+    }
+    
+    .date-filter {
+        padding: 10px;
+        background: #f0f0f0;
+        border-bottom: 1px solid #ddd;
+    }
+    
+    .date-filter input {
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+    }
+    
+    .date-range-filter {
+        padding: 10px;
+        background: #e8f4f8;
+        border-bottom: 1px solid #ddd;
+    }
+    
+    .report-header {
+        padding: 8px 10px;
+        background: #e9ecef;
+        border-bottom: 1px solid #ddd;
+        font-weight: bold;
+        font-size: 13px;
+    }
+    
+    .loading {
+        text-align: center;
+        padding: 20px;
+        color: #6c757d;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+    }
+    
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.8);
+    }
+    
+    .modal-content {
+        margin: auto;
+        display: block;
+        max-width: 90%;
+        max-height: 90%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+    
+    .modal-single-view {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+    
+    .modal-compare-view {
+        display: none;
+        width: 100%;
+        height: 100%;
+        display: flex;
+    }
+    
+    .compare-panel {
+        width: 50%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+    
+    .compare-panel img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+    
+    .close {
+        position: absolute;
+        top: 15px;
+        right: 35px;
+        color: #f1f1f1;
+        font-size: 40px;
+        font-weight: bold;
+        cursor: pointer;
+        z-index: 1001;
+    }
+    
+    .view-mode-toggle {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        z-index: 1001;
+        background: rgba(0,0,0,0.7);
+        padding: 5px;
+        border-radius: 5px;
+    }
+    
+    .view-mode-toggle button {
+        background: #333;
+        color: white;
+        border: 1px solid #666;
+        padding: 5px 10px;
+        margin: 0 2px;
+        cursor: pointer;
+        border-radius: 3px;
+    }
+    
+    .view-mode-toggle button.active {
+        background: #17a2b8;
+        border-color: #17a2b8;
+    }
+    
+    .nav-controls {
+        position: absolute;
+        bottom: 15px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1001;
+        background: rgba(0,0,0,0.7);
+        padding: 10px;
+        border-radius: 5px;
+        display: none;
+    }
+    
+    .nav-controls.active {
+        display: block;
+    }
+    
+    .nav-controls button {
+        background: #333;
+        color: white;
+        border: 1px solid #666;
+        padding: 5px 10px;
+        margin: 0 2px;
+        cursor: pointer;
+        border-radius: 3px;
+    }
+    
+    .independent-nav {
+        display: inline-block;
+        margin: 0 10px;
+    }
+    
+    .independent-nav span {
+        color: #ccc;
+        margin-right: 5px;
+    }
+    
+    /* Autocomplete styles */
+    .autocomplete-container {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+    }
+    
+    .autocomplete-list {
+        position: absolute;
+        z-index: 1000;
+        background: white;
+        border: 1px solid #ccc;
+        border-top: none;
+        max-height: 200px;
+        overflow-y: auto;
+        width: 100%;
+        display: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-radius: 0 0 4px 4px;
+    }
+    
+    .autocomplete-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+        transition: background-color 0.2s;
+    }
+    
+    .autocomplete-item:hover, .autocomplete-item.active {
+        background-color: #f0f8ff;
+    }
+    
+    .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+
+    .rating-select {
+        width: 100%;
+        padding: 4px;
+        margin-top: 4px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+    }
+
+    .rating-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin: 12px 0;
+    }
+
+    .filter-buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .btn-reset {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+</style>
+
+<div class="module">
+    <!-- Filter Section -->
+    <div class="filter-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3>Общие фильтры</h3>
+        </div>
+        <form method="GET" id="filter-form">
+            <div class="filter-row" style="flex-wrap: wrap;">
+                <div class="filter-item" style="min-width: 180px; max-width: 220px;">
+                    <label for="client-search">Клиент:</label>
+                    <div class="autocomplete-container">
+                        <input type="text" id="client-search" name="client_search" placeholder="Поиск..." value="{{ current_filters.client_search|default:'' }}">
+                        <div id="client-autocomplete-list" class="autocomplete-list"></div>
+                    </div>
+                    <select name="client" id="client-select" style="display:none;">
+                        <option value="">Все клиенты</option>
+                        {% for client in clients %}
+                            <option value="{{ client.id }}" {% if current_filters.client|add:"0" == client.id %}selected{% endif %}>
+                                {{ client.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-item" style="min-width: 180px; max-width: 220px;">
+                    <label for="task-search">Задача:</label>
+                    <div class="autocomplete-container">
+                        <input type="text" id="task-search" name="task_search" placeholder="Поиск..." value="{{ current_filters.task_search|default:'' }}">
+                        <div id="task-autocomplete-list" class="autocomplete-list"></div>
+                    </div>
+                    <select name="task" id="task-select" style="display:none;">
+                        <option value="">Все задачи</option>
+                        {% for task in tasks %}
+                            <option value="{{ task.id }}" {% if current_filters.task|add:"0" == task.id %}selected{% endif %}>
+                                {{ task.title }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-item" style="min-width: 160px; max-width: 200px;">
+                    <label for="user">Сотрудник:</label>
+                    <select name="user" id="user-select">
+                        <option value="">Все сотрудники</option>
+                        {% for user in users %}
+                            <option value="{{ user.id }}" {% if current_filters.user|add:"0" == user.id %}selected{% endif %}>
+                                {{ user.get_full_name|default:user.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="filter-buttons">
+                <button type="button" class="default" onclick="applyFilters()">Применить фильтры</button>
+                <button type="button" class="btn-reset" onclick="resetFilters()">Сбросить фильтр</button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Main Content - Two Sidebars -->
+    <div class="main-container">
+        <!-- Left Sidebar - Latest per client -->
+        <div class="sidebar">
+            <div class="date-filter">
+                <label for="left-date">Дата фотоотчета:</label>
+                <input type="date" id="left-date" value="{{ current_date|date:"Y-m-d"|default:current_date }}">
+            </div>
+            <div class="sidebar-header">
+                <span>Актуальные фотоотчеты</span>
+            </div>
+            <div class="sidebar-content" id="left-sidebar-content">
+                <div class="loading" id="left-loading">
+                    Загрузка актуальных фотоотчетов...
+                </div>
+                <div id="left-reports-list"></div>
+            </div>
+        </div>
+        
+        <!-- Right Sidebar - All others -->
+        <div class="sidebar">
+            <div class="date-range-filter">
+                <label for="right-date-range">Диапазон дат:</label>
+                <input type="date" id="right-date-from" placeholder="От">
+                <input type="date" id="right-date-to" placeholder="До" value="{{ current_date|date:"Y-m-d"|default:current_date }}">
+            </div>
+            <div class="sidebar-header">
+                <span>Предыдущие фотоотчеты</span>
+            </div>
+            <div class="sidebar-content" id="right-sidebar-content">
+                <div class="loading" id="right-loading">
+                    Загрузка предыдущих фотоотчетов...
+                </div>
+                <div id="right-reports-list"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for image preview -->
+<div id="image-modal" class="modal">
+    <span class="close" onclick="closeModal()">&times;</span>
+    
+    <!-- View mode toggle -->
+    <div class="view-mode-toggle">
+        <button id="single-view-btn" class="active" onclick="switchViewMode('single')">👁️ Одиночный</button>
+        <button id="compare-view-btn" onclick="switchViewMode('compare')">↔️ Сравнение</button>
+    </div>
+    
+    <!-- Single view -->
+    <div id="single-view-container" class="modal-single-view">
+        <img class="modal-content" id="modal-img">
+    </div>
+    
+    <!-- Compare view -->
+    <div id="compare-view-container" class="modal-compare-view">
+        <div class="compare-panel">
+            <img id="compare-img-left">
+        </div>
+        <div class="compare-panel">
+            <img id="compare-img-right">
+        </div>
+    </div>
+    
+    <!-- Navigation controls for compare mode -->
+    <div id="compare-nav-controls" class="nav-controls">
+        <div class="nav-mode-toggle">
+            <button id="sync-mode-btn" class="active" onclick="switchNavMode('sync')">🔄 Синхронно</button>
+            <button id="independent-mode-btn" onclick="switchNavMode('independent')">🔀 Раздельно</button>
+        </div>
+        
+        <div id="sync-controls" class="nav-controls-section active">
+            <button onclick="navigateCompare(-1, 'sync')">&lt;&lt; Назад</button>
+            <button onclick="navigateCompare(1, 'sync')">Вперед &gt;&gt;</button>
+        </div>
+        
+        <div id="independent-controls" class="nav-controls-section">
+            <div class="independent-nav">
+                <span>Левая панель:</span>
+                <button onclick="navigateCompare(-1, 'left')">&lt; L</button>
+                <button onclick="navigateCompare(1, 'left')">L &gt;</button>
+            </div>
+            <div class="independent-nav">
+                <span>Правая панель:</span>
+                <button onclick="navigateCompare(-1, 'right')">&lt; R</button>
+                <button onclick="navigateCompare(1, 'right')">R &gt;</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal-details" style="position: absolute; bottom: 10px; left: 10px; color: white; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 4px; max-width: 80%;">
+        <div id="modal-info"></div>
+        <div id="exif-info" style="margin-top: 5px; font-size: 12px;"></div>
+    </div>
+</div>
+
+<script>
+    let currentPhotoReports = [];
+    let currentLeftReports = [];
+    let currentRightReports = [];
+    
+    // Load photo reports on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadPhotoReports();
+        initializeAutocomplete();
+    });
+    
+    function loadPhotoReports() {
+        console.log("loadPhotoReports function called");
+        // Show loading indicators
+        document.getElementById('left-loading').style.display = 'block';
+        document.getElementById('right-loading').style.display = 'block';
+
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || document.cookie.split(';').find(c => c.trim().startsWith('csrftoken'))?.split('=')[1];
+        console.log("CSRF Token:", csrfToken);
+
+        // Get filter parameters
+        const taskSearch = document.getElementById('task-search').value;
+        const taskId = document.getElementById('task-select').value;
+        const userId = document.getElementById('user-select').value;
+        const clientId = document.getElementById('client-select').value;
+
+        console.log("Filters:", { taskSearch, taskId, userId, clientId });
+
+        // Construct URL with filters
+        let url = '/admin/tasks/surveyanswer/api/equipment-photo-reports/';
+        const params = new URLSearchParams();
+
+        if (taskId) {
+            params.append('task_id', taskId);
+        } else if (taskSearch) {
+            params.append('task_search', taskSearch);
+        }
+        if (userId) {
+            params.append('user_id', userId);
+        }
+        if (clientId) {
+            params.append('client_id', clientId);
+        }
+
+        if (params.toString()) {
+            url += '?' + params.toString();
+        }
+
+        console.log("Fetching URL:", url);
+
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': csrfToken || '',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('API Response received:', data);
+            currentPhotoReports = data.results || [];
+            console.log('currentPhotoReports:', currentPhotoReports);
+            renderPhotoReports();
+        })
+        .catch(error => {
+            console.error('Error loading photo reports:', error);
+            document.getElementById('left-loading').style.display = 'none';
+            document.getElementById('right-loading').style.display = 'none';
+        });
+    }
+    
+    function applyFilters() {
+        // This function can be used for manual filters (task, user)
+        loadPhotoReports();
+    }
+    
+    function renderPhotoReports() {
+        // Group reports by client and find the latest for each
+        const reportsByClient = {};
+        currentPhotoReports.forEach(report => {
+            const clientId = report.clientName;
+            if (!reportsByClient[clientId] || new Date(report.dateCreated) > new Date(reportsByClient[clientId].dateCreated)) {
+                reportsByClient[clientId] = report;
+            }
+        });
+        
+        // Left sidebar: latest per client
+        currentLeftReports = Object.values(reportsByClient);
+        currentLeftReports.sort((a, b) => new Date(b.dateCreated) - new Date(a.dateCreated));
+        
+        // Right sidebar: all others
+        const leftReportIds = new Set(currentLeftReports.map(r => r.id));
+        currentRightReports = currentPhotoReports.filter(report => !leftReportIds.has(report.id));
+        currentRightReports.sort((a, b) => new Date(b.dateCreated) - new Date(a.dateCreated));
+        
+        renderLeftSidebar();
+        renderRightSidebar();
+    }
+    
+    function renderLeftSidebar() {
+        const container = document.getElementById('left-reports-list');
+        container.innerHTML = '';
+        
+        if (currentLeftReports.length === 0) {
+            document.getElementById('left-loading').style.display = 'none';
+            container.innerHTML = '<div class="empty-state">Нет актуальных фотоотчетов</div>';
+            return;
+        }
+        
+        currentLeftReports.forEach(report => {
+            const reportCard = createReportCard(report, true);
+            container.appendChild(reportCard);
+        });
+        
+        document.getElementById('left-loading').style.display = 'none';
+    }
+    
+    function renderRightSidebar() {
+        const container = document.getElementById('right-reports-list');
+        container.innerHTML = '';
+        
+        if (currentRightReports.length === 0) {
+            document.getElementById('right-loading').style.display = 'none';
+            container.innerHTML = '<div class="empty-state">Нет предыдущих фотоотчетов</div>';
+            return;
+        }
+        
+        currentRightReports.forEach(report => {
+            const reportCard = createReportCard(report, false);
+            container.appendChild(reportCard);
+        });
+        
+        document.getElementById('right-loading').style.display = 'none';
+    }
+    
+    function createReportCard(report, isLeftSidebar) {
+        const card = document.createElement('div');
+        card.className = 'photo-report-card';
+        card.id = `report-${report.id}`;
+        card.dataset.clientName = report.clientName; // For filtering
+        
+        // Determine status class
+        let statusClass = 'status-new';
+        let statusText = 'Новый';
+        if (report.status === 'ACCEPTED') {
+            statusClass = 'status-accepted';
+            statusText = 'Принят';
+        } else if (report.status === 'REWORK') {
+            statusClass = 'status-rework';
+            statusText = 'На доработке';
+        } else if (report.status === 'ON_CHECK') {
+            statusClass = 'status-on-check';
+            statusText = 'На проверке';
+        } else if (report.status === 'SENT' || report.status === 'DRAFT') {
+            statusClass = 'status-new';
+            statusText = 'Новый';
+        }
+        
+        // Format rating values
+        const getRatingText = (value) => {
+            if (value === null || value === undefined) return 'Не оценено';
+            const texts = ['Плохо', 'Средне', 'Хорошо'];
+            return texts[value - 1] || 'Некорректно';
+        };
+
+        const avgRating = report.averageRating !== null ? report.averageRating.toFixed(2) : 'Нет';
+
+        // Build rating section
+        let ratingSection = `
+            <div class="rating-section">
+                <div><strong>Оценки:</strong></div>
+                <div>Наполнение оборудования: ${getRatingText(report.equipmentFill)}</div>
+                <div>Отсутствие посторонних товаров: ${getRatingText(report.noForeignGoods)}</div>
+                <div>Выкладка и оформление: ${getRatingText(report.productDisplay)}</div>
+                <div>Расположение оборудования: ${getRatingText(report.equipmentLocation)}</div>
+                <div><strong>Итоговая: ${avgRating}</strong></div>
+            </div>
+        `;
+
+        // Build moderation section
+        let moderationSection = '';
+        if (!report.moderated) {
+            moderationSection = `
+                <div class="comment-section">
+                    <div><strong>Оценить и обработать отчёт:</strong></div>
+                    <div class="rating-grid">
+                        <div>
+                            <label>Наполнение оборудования:</label>
+                            <select class="rating-select" data-field="equipmentFill" id="rating-equipmentFill-${report.id}">
+                                <option value="">Выберите...</option>
+                                <option value="1">Плохо</option>
+                                <option value="2">Средне</option>
+                                <option value="3">Хорошо</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Отсутствие посторонних товаров:</label>
+                            <select class="rating-select" data-field="noForeignGoods" id="rating-noForeignGoods-${report.id}">
+                                <option value="">Выберите...</option>
+                                <option value="1">Плохо</option>
+                                <option value="2">Средне</option>
+                                <option value="3">Хорошо</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Выкладка и оформление:</label>
+                            <select class="rating-select" data-field="productDisplay" id="rating-productDisplay-${report.id}">
+                                <option value="">Выберите...</option>
+                                <option value="1">Плохо</option>
+                                <option value="2">Средне</option>
+                                <option value="3">Хорошо</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Расположение оборудования:</label>
+                            <select class="rating-select" data-field="equipmentLocation" id="rating-equipmentLocation-${report.id}">
+                                <option value="">Выберите...</option>
+                                <option value="1">Плохо</option>
+                                <option value="2">Средне</option>
+                                <option value="3">Хорошо</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="button" class="default" style="background: #28a745; color: white;" onclick="processReport('${report.id}')">Обработать</button>
+                </div>
+            `;
+        } else {
+            const formattedDate = report.moderatedAt ? formatDate(report.moderatedAt) : 'недавно';
+            const moderatorName = report.moderatorName || 'Неизвестен';
+            moderationSection = `
+                <div class="comment-section">
+                    <div><strong>Обработано модератором:</strong> ${moderatorName} (${formattedDate})</div>
+                </div>
+            `;
+        }
+
+        card.innerHTML = `
+            <div class="photo-report-header" onclick="toggleReportCard(this)">
+                <h4>
+                    <span class="task-name">${report.taskName}</span> - 
+                    <span class="client-name">${report.clientName}</span> - 
+                    <span class="user-name">${report.userName}</span>
+                </h4>
+                <div class="labels">
+                    <span class="label ${statusClass}">${statusText}</span>
+                    <span class="date-created">${formatDate(report.dateCreated)}</span>
+                </div>
+            </div>
+            <div class="photo-report-content">
+                <div class="report-header">
+                    ${formatDate(report.dateCreated)} | ${report.userName} | Оценка: ${avgRating}
+                </div>
+                ${ratingSection}
+                <div class="comment-section">
+                    <div><strong>Комментарий модератора:</strong></div>
+                    <div>${report.moderatorComment || 'Нет комментария'}</div>
+                </div>
+                <!-- Количество стендов -->
+                <div class="comment-section">
+                    <div>
+                        <strong>Количество стендов у клиента:</strong> 
+                        <span id="client-stand-count-${report.id}">${report.clientStandCount}</span> шт
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="editClientStandCount(${report.clientId}, ${report.id})">...</button>
+                    </div>
+                    ${report.reportedStandCount !== report.taskStandCount ? `
+                    <div class="alert alert-warning mt-2">
+                        Представитель указал другое количество стендов: ${report.reportedStandCount} шт
+                    </div>
+                    ` : ``}
+                </div>
+                ${moderationSection}
+                <!-- Кнопка "Принять" для обработанных, но не принятых отчётов -->
+                ${report.moderated && report.status !== 'ACCEPTED' ? `
+                <div class="comment-section">
+                    <button type="button" class="default" style="background: #17a2b8; color: white;" onclick="acceptReport('${report.id}')">Принять</button>
+                </div>
+                ` : ``}
+                <div class="comment-section">
+                    <div><strong>Ваши заметки:</strong></div>
+                    <textarea class="comment-input" placeholder="Добавить заметку..." id="personal-comment-${report.id}">${report.personalComment || ''}</textarea>
+                    <button type="button" class="default" onclick="savePersonalComment('${report.id}')">Сохранить заметку</button>
+                </div>
+                <div class="comment-section">
+                    <div><strong>Отправить на доработку:</strong></div>
+                    <textarea class="comment-input" placeholder="Комментарий для сотрудника..." id="rework-comment-${report.id}"></textarea>
+                    <button type="button" class="default" style="background: #dc3545; color: white;" onclick="sendToRework('${report.id}')">Отправить на доработку</button>
+                </div>
+                <div class="photo-gallery">
+                    ${report.photos.map((photo, index) => {
+                    // Add missing client, date, and task info to each photo
+                    const photoWithMetadata = {
+                        ...photo,
+                        clientId: report.clientId,
+                        dateCreated: report.dateCreated,
+                        taskId: report.taskId,
+                        reportId: report.id
+                    };
+                    return `
+                        <div class="photo-item">
+                            <img src="${photo.url}" 
+                                 class="photo-preview" 
+                                 data-url="${photo.url}" 
+                                 data-name="${photo.name}" 
+                                 data-author="${report.userName || report.createdBy || report.created_by || 'Неизвестный'}" 
+                                 data-date="${report.dateCreated}" 
+                                 data-exif-date="${photo.exif_date || ''}"
+                                 data-latitude="${photo.latitude || ''}"
+                                 data-longitude="${photo.longitude || ''}"
+                                 data-location-address="${photo.location_address || ''}"
+                                 data-address="${report.clientAddress || ''}"
+                                 data-photos='${JSON.stringify(report.photos.map(p => ({
+                                     ...p,
+                                     clientId: report.clientId,
+                                     dateCreated: report.dateCreated,
+                                     taskId: report.taskId,
+                                     reportId: report.id,
+                                     author: report.userName || report.createdBy || report.created_by || "Неизвестный",
+                                     address: report.clientAddress || report.address || "Не указан"
+                                 }))).replace(/'/g, "&#39;")}'
+                                 data-index="${index}"
+                                 onclick="showImageFromElement(this)">
+                            <div class="photo-details">${photo.name}</div>
+                        </div>
+                    `;
+                }).join('')}
+                </div>
+            </div>
+        `;
+        
+        return card;
+    }
+    
+    // Track expanded reports and current client filter
+    const expandedReportIds = new Set();
+    
+    function toggleReportCard(header) {
+        const content = header.nextElementSibling;
+        const reportCard = header.closest('.photo-report-card');
+        const reportId = reportCard.id.replace('report-', '');
+        const isExpanded = content.classList.contains('expanded');
+        
+        if (header.closest('#left-reports-list')) {
+            const clientName = header.querySelector('.client-name').textContent;
+            
+            if (isExpanded) {
+                // Second click: collapse and reset filter
+                content.classList.remove('expanded');
+                expandedReportIds.delete(reportId);
+                
+                // Show all reports in right sidebar
+                document.querySelectorAll('#right-reports-list .photo-report-card').forEach(card => {
+                    card.style.display = 'block';
+                });
+            } else {
+                // First click: expand and apply filter
+                content.classList.add('expanded');
+                expandedReportIds.add(reportId);
+                
+                // Filter right sidebar by client
+                document.querySelectorAll('#right-reports-list .photo-report-card').forEach(card => {
+                    const cardClient = card.dataset.clientName;
+                    card.style.display = (cardClient === clientName) ? 'block' : 'none';
+                });
+            }
+        } else {
+            // Right sidebar: just toggle
+            content.classList.toggle('expanded');
+        }
+    }
+    
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+    
+    // Global variables for modal navigation
+    let currentPhotoIndex = 0;
+    let currentPhotoList = [];
+    
+    // Compare mode variables
+    let currentViewMode = 'single'; // 'single' or 'compare'
+    let currentNavMode = 'sync'; // 'sync' or 'independent'
+    let leftPhotoIndex = 0;
+    let rightPhotoIndex = 0;
+    let leftPhotoList = [];
+    let rightPhotoList = [];
+    
+    function showImageFromElement(imgElement) {
+        const src = imgElement.dataset.url;
+        const name = imgElement.dataset.name;
+        const author = imgElement.dataset.author;
+        const date = imgElement.dataset.date;
+        const exifDate = imgElement.dataset.exifDate;
+        const latitude = imgElement.dataset.latitude;
+        const longitude = imgElement.dataset.longitude;
+        const locationAddress = imgElement.dataset.locationAddress;
+        const address = imgElement.dataset.address;
+        const allPhotos = JSON.parse(imgElement.dataset.photos.replace(/&#39;/g, "'"));
+        const currentIndex = parseInt(imgElement.dataset.index);
+        
+        showImage(src, name, author, date, address, allPhotos, currentIndex, exifDate, latitude, longitude, locationAddress);
+    }
+
+    function showImage(src, name, author, date, address, allPhotos, currentIndex, exifDate, latitude, longitude, locationAddress) {
+        // Save report author and address for consistent display across photos
+        if (allPhotos.length > 0) {
+            window.currentReportAuthor = allPhotos[0].author || 'Неизвестный';
+            window.currentReportAddress = allPhotos[0].address || 'Не указан';
+        }
+        const modal = document.getElementById('image-modal');
+        const modalImg = document.getElementById('modal-img');
+        const modalInfo = document.getElementById('modal-info');
+        const exifInfo = document.getElementById('exif-info');
+
+        // Set single view mode initially
+        currentViewMode = 'single';
+        currentNavMode = 'sync';
+
+        // Store current context
+        currentPhotoIndex = currentIndex;
+        currentPhotoList = allPhotos;
+
+        // Save report author and address for consistent display across photos
+        if (allPhotos.length > 0) {
+            window.currentReportAuthor = allPhotos[0].author || 'Неизвестный';
+            window.currentReportAddress = allPhotos[0].address || 'Не указан';
+        }
+
+        // For compare mode, prepare left and right lists
+        leftPhotoList = allPhotos;
+        leftPhotoIndex = currentIndex;
+
+        // Find previous reports for this client to populate right panel
+        console.log("🔍 DEBUG: Looking for previous reports for current photo");
+        console.log("   Current photo client:", allPhotos[0].clientId);
+        console.log("   Current photo date:", allPhotos[0].dateCreated);
+        console.log("   Current photo task:", allPhotos[0].taskId);
+
+        const previousPhotos = findPreviousReportPhotos(allPhotos[0].clientId, allPhotos[0].dateCreated, allPhotos[0].taskId);
+        console.log("   Previous photos found:", previousPhotos.length);
+        rightPhotoList = previousPhotos || [];
+        rightPhotoIndex = 0; // Start with first photo from previous report
+
+        // Update UI based on available photos
+        updateCompareView();
+
+        // Show single view by default
+        document.getElementById('single-view-container').style.display = 'block';
+        document.getElementById('compare-view-container').style.display = 'none';
+        document.getElementById('compare-nav-controls').style.display = 'none';
+
+        modalImg.src = src;
+        modal.style.display = 'block';
+
+        // Format the image information
+        const dateObj = new Date(date);
+        const formattedDate = dateObj.toLocaleString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        modalInfo.innerHTML = `
+            <div><strong>Имя файла:</strong> ${name}</div>
+            <div><strong>Автор:</strong> ${author || 'Неизвестный'}</div>
+            <div><strong>Дата загрузки:</strong> ${formattedDate}</div>
+            <div><strong>Адрес:</strong> ${address || 'Не указан'}</div>
+        `;
+
+        // Format EXIF information
+        let exifHtml = '';
+        let hasExifDetails = false;
+        let exifDetails = '';
+        
+        if (exifDate) {
+            // Parse EXIF date format (usually YYYY:MM:DD HH:MM:SS)
+            try {
+                const exifDateObj = new Date(exifDate.replace(/:/g, '-', 2));
+                // Проверяем, является ли дата действительной
+                if (isNaN(exifDateObj.getTime())) {
+                    exifDetails += `<div><strong>Дата съемки:</strong> Не удалось определить</div>`;
+                } else {
+                    const formattedExifDate = exifDateObj.toLocaleString('ru-RU', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                    exifDetails += `<div><strong>Дата съемки:</strong> ${formattedExifDate}</div>`;
+                }
+            } catch (e) {
+                exifDetails += `<div><strong>Дата съемки:</strong> ${exifDate}</div>`;
+            }
+            hasExifDetails = true;
+        }
+
+        // Геолокация фото - теперь отображаем понятный адрес и координаты
+        if (locationAddress && locationAddress !== 'Не удалось определить адрес') {
+            exifDetails += `<div><strong>Адрес съемки:</strong> ${locationAddress}</div>`;
+            hasExifDetails = true;
+        } else if (latitude && longitude) {
+            // Резервный вариант - показываем координаты
+            exifDetails += `<div><strong>Координаты:</strong> ${latitude}, ${longitude}</div>`;
+            hasExifDetails = true;
+        } else if (latitude || longitude) {
+            // Если есть только одна координата
+            const coords = latitude ? `Широта: ${latitude}` : `Долгота: ${longitude}`;
+            exifDetails += `<div><strong>Координаты:</strong> ${coords}</div>`;
+            hasExifDetails = true;
+        } else if (exifDate || latitude || longitude || locationAddress) { // Показываем только если есть какие-то EXIF данные
+            exifDetails += `<div><strong>Геолокация фото:</strong> не удалось получить</div>`;
+            hasExifDetails = true;
+        }
+        
+        // Добавляем заголовок "EXIF данные:" только если есть детали
+        if (hasExifDetails) {
+            exifHtml = `<div><strong>EXIF данные:</strong></div>` + exifDetails;
+        }
+        exifInfo.innerHTML = exifHtml;
+
+        // Add event listeners
+        document.addEventListener('keydown', handleKeyDown);
+        modal.addEventListener('wheel', handleWheel);
+    }
+    
+    // Настройка: точное совпадение по задаче (по умолчанию false)
+    const EXACT_TASK_MATCH = false;
+    
+    function findPreviousReportPhotos(clientId, currentDate, currentTaskId = null) {
+        let previousReports;
+        if (EXACT_TASK_MATCH && currentTaskId) {
+            // Точное совпадение по задаче
+            previousReports = currentRightReports.filter(report =>
+                report.clientId == clientId &&
+                report.taskId == currentTaskId &&
+                new Date(report.dateCreated) < new Date(currentDate)
+            );
+        } else {
+            // Сравнение только по клиенту (по умолчанию)
+            previousReports = currentRightReports.filter(report =>
+                report.clientId == clientId &&
+                new Date(report.dateCreated) < new Date(currentDate)
+            );
+        }
+
+        if (previousReports.length > 0) {
+            // Get photos from the most recent previous report
+            const latestPrevious = previousReports.reduce((latest, current) =>
+                new Date(current.dateCreated) > new Date(latest.dateCreated) ? current : latest
+            );
+            
+            // Add report-level metadata to each photo for consistent display
+            const photosWithMetadata = latestPrevious.photos.map(photo => ({
+                ...photo,
+                author: latestPrevious.userName || latestPrevious.createdBy || latestPrevious.created_by || "Неизвестный",
+                address: latestPrevious.clientAddress || latestPrevious.address || "Не указан"
+            }));
+            
+            return photosWithMetadata;
+        }
+        
+        return [];
+    }
+    
+    function switchViewMode(mode) {
+        currentViewMode = mode;
+        
+        const singleBtn = document.getElementById('single-view-btn');
+        const compareBtn = document.getElementById('compare-view-btn');
+        const singleContainer = document.getElementById('single-view-container');
+        const compareContainer = document.getElementById('compare-view-container');
+        const navControls = document.getElementById('compare-nav-controls');
+        
+        if (mode === 'single') {
+            singleBtn.classList.add('active');
+            compareBtn.classList.remove('active');
+            singleContainer.style.display = 'block';
+            compareContainer.style.display = 'none';
+            navControls.style.display = 'none';
+            
+            // Update single view with current photo info
+            if (currentPhotoList && currentPhotoList.length > 0 && currentPhotoIndex < currentPhotoList.length) {
+                const currentPhoto = currentPhotoList[currentPhotoIndex];
+                // Format the image information
+                const dateObj = new Date(currentPhoto.dateCreated);
+                const formattedDate = dateObj.toLocaleString('ru-RU', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                // Use saved report author and address for consistency
+                const authorName = window.currentReportAuthor || currentPhoto.author || 'Неизвестный';
+                const address = window.currentReportAddress || currentPhoto.address || 'Не указан';
+
+                const modalInfo = document.getElementById('modal-info');
+                modalInfo.innerHTML = `
+                    <div><strong>Имя файла:</strong> ${currentPhoto.name}</div>
+                    <div><strong>Автор:</strong> ${authorName}</div>
+                    <div><strong>Дата загрузки:</strong> ${formattedDate}</div>
+                    <div><strong>Адрес:</strong> ${address}</div>
+                `;
+                
+                // Format EXIF information
+                let exifHtml = '';
+                let hasExifDetails = false;
+                let exifDetails = '';
+                
+                if (currentPhoto.exif_date) {
+                    // Parse EXIF date format (usually YYYY:MM:DD HH:MM:SS)
+                    try {
+                        const exifDateObj = new Date(currentPhoto.exif_date.replace(/:/g, '-', 2));
+                        // Проверяем, является ли дата действительной
+                        if (isNaN(exifDateObj.getTime())) {
+                            exifDetails += `<div><strong>Дата съемки:</strong> Не удалось определить</div>`;
+                        } else {
+                            const formattedExifDate = exifDateObj.toLocaleString('ru-RU', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                            });
+                            exifDetails += `<div><strong>Дата съемки:</strong> ${formattedExifDate}</div>`;
+                        }
+                    } catch (e) {
+                        exifDetails += `<div><strong>Дата съемки:</strong> ${currentPhoto.exif_date}</div>`;
+                    }
+                    hasExifDetails = true;
+                }
+
+                // Геолокация фото - теперь отображаем понятный адрес и координаты
+                if (currentPhoto.location_address && currentPhoto.location_address !== 'Не удалось определить адрес') {
+                    exifDetails += `<div><strong>Адрес съемки:</strong> ${currentPhoto.location_address}</div>`;
+                    hasExifDetails = true;
+                } else if (currentPhoto.latitude && currentPhoto.longitude) {
+                    // Резервный вариант - показываем координаты
+                    exifDetails += `<div><strong>Координаты:</strong> ${currentPhoto.latitude}, ${currentPhoto.longitude}</div>`;
+                    hasExifDetails = true;
+                } else if (currentPhoto.latitude || currentPhoto.longitude) {
+                    // Если есть только одна координата
+                    const coords = currentPhoto.latitude ? `Широта: ${currentPhoto.latitude}` : `Долгота: ${currentPhoto.longitude}`;
+                    exifDetails += `<div><strong>Координаты:</strong> ${coords}</div>`;
+                    hasExifDetails = true;
+                } else if (currentPhoto.exif_date || currentPhoto.latitude || currentPhoto.longitude || currentPhoto.location_address) { // Показываем только если есть какие-то EXIF данные
+                    exifDetails += `<div><strong>Геолокация фото:</strong> не удалось получить</div>`;
+                    hasExifDetails = true;
+                }
+                
+                // Добавляем заголовок "EXIF данные:" только если есть детали
+                const exifInfo = document.getElementById('exif-info');
+                if (hasExifDetails) {
+                    exifInfo.innerHTML = `<div><strong>EXIF данные:</strong></div>` + exifDetails;
+                } else {
+                    exifInfo.innerHTML = '';
+                }
+            }
+        } else {
+            singleBtn.classList.remove('active');
+            compareBtn.classList.add('active');
+            singleContainer.style.display = 'none';
+            compareContainer.style.display = 'flex';
+            navControls.style.display = 'block';
+
+            // Update compare view
+            updateCompareView();
+        }
+    }
+    
+    function switchNavMode(mode) {
+        currentNavMode = mode;
+        
+        const syncBtn = document.getElementById('sync-mode-btn');
+        const independentBtn = document.getElementById('independent-mode-btn');
+        const syncControls = document.getElementById('sync-controls');
+        const independentControls = document.getElementById('independent-controls');
+        
+        if (mode === 'sync') {
+            syncBtn.classList.add('active');
+            independentBtn.classList.remove('active');
+            syncControls.style.display = 'block';
+            independentControls.style.display = 'none';
+        } else {
+            syncBtn.classList.remove('active');
+            independentBtn.classList.add('active');
+            syncControls.style.display = 'none';
+            independentControls.style.display = 'block';
+        }
+    }
+    
+    function updateCompareView() {
+        const leftImg = document.getElementById('compare-img-left');
+        const rightImg = document.getElementById('compare-img-right');
+
+        if (leftPhotoList.length > 0 && leftPhotoIndex < leftPhotoList.length) {
+            leftImg.src = leftPhotoList[leftPhotoIndex].url;
+        } else {
+            rightImg.src = ''; // Clear the image
+        }
+
+        if (rightPhotoList.length > 0 && rightPhotoIndex < rightPhotoList.length) {
+            rightImg.src = rightPhotoList[rightPhotoIndex].url;
+        } else {
+            rightImg.src = ''; // Clear the image
+        }
+
+        // Update photo information for the current left photo
+        if (leftPhotoList.length > 0 && leftPhotoIndex < leftPhotoList.length) {
+            const currentPhoto = leftPhotoList[leftPhotoIndex];
+            
+            // Format the image information
+            const dateObj = new Date(currentPhoto.dateCreated);
+            const formattedDate = dateObj.toLocaleString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Используем информацию об авторе из глобальной переменной, если она доступна
+            const authorName = window.currentReportAuthor || currentPhoto.author || 'Неизвестный';
+            const address = window.currentReportAddress || currentPhoto.address || 'Не указан';
+
+            // Обновляем глобальные переменные, если они не установлены
+            if (!window.currentReportAuthor) {
+                window.currentReportAuthor = currentPhoto.author || 'Неизвестный';
+            }
+            if (!window.currentReportAddress) {
+                window.currentReportAddress = currentPhoto.address || 'Не указан';
+            }
+
+            const modalInfo = document.getElementById('modal-info');
+            modalInfo.innerHTML = `
+                <div><strong>Имя файла:</strong> ${currentPhoto.name}</div>
+                <div><strong>Автор:</strong> ${authorName}</div>
+                <div><strong>Дата загрузки:</strong> ${formattedDate}</div>
+                <div><strong>Адрес:</strong> ${address}</div>
+            `;
+            
+            // Format EXIF information
+            let exifHtml = '';
+            let hasExifDetails = false;
+            let exifDetails = '';
+            
+            if (currentPhoto.exif_date) {
+                // Parse EXIF date format (usually YYYY:MM:DD HH:MM:SS)
+                try {
+                    const exifDateObj = new Date(currentPhoto.exif_date.replace(/:/g, '-', 2));
+                    // Проверяем, является ли дата действительной
+                    if (isNaN(exifDateObj.getTime())) {
+                        exifDetails += `<div><strong>Дата съемки:</strong> Не удалось определить</div>`;
+                    } else {
+                        const formattedExifDate = exifDateObj.toLocaleString('ru-RU', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                        });
+                        exifDetails += `<div><strong>Дата съемки:</strong> ${formattedExifDate}</div>`;
+                    }
+                } catch (e) {
+                    exifDetails += `<div><strong>Дата съемки:</strong> ${currentPhoto.exif_date}</div>`;
+                }
+                hasExifDetails = true;
+            }
+
+            // Геолокация фото - теперь отображаем понятный адрес и координаты
+            if (currentPhoto.location_address && currentPhoto.location_address !== 'Не удалось определить адрес') {
+                exifDetails += `<div><strong>Адрес съемки:</strong> ${currentPhoto.location_address}</div>`;
+                hasExifDetails = true;
+            } else if (currentPhoto.latitude && currentPhoto.longitude) {
+                // Резервный вариант - показываем координаты
+                exifDetails += `<div><strong>Координаты:</strong> ${currentPhoto.latitude}, ${currentPhoto.longitude}</div>`;
+                hasExifDetails = true;
+            } else if (currentPhoto.latitude || currentPhoto.longitude) {
+                // Если есть только одна координата
+                const coords = currentPhoto.latitude ? `Широта: ${currentPhoto.latitude}` : `Долгота: ${currentPhoto.longitude}`;
+                exifDetails += `<div><strong>Координаты:</strong> ${coords}</div>`;
+                hasExifDetails = true;
+            } else if (currentPhoto.exif_date || currentPhoto.latitude || currentPhoto.longitude || currentPhoto.location_address) { // Показываем только если есть какие-то EXIF данные
+                exifDetails += `<div><strong>Геолокация фото:</strong> не удалось получить</div>`;
+                hasExifDetails = true;
+            }
+            
+            // Добавляем заголовок "EXIF данные:" только если есть детали
+            const exifInfo = document.getElementById('exif-info');
+            if (hasExifDetails) {
+                exifInfo.innerHTML = `<div><strong>EXIF данные:</strong></div>` + exifDetails;
+            } else {
+                exifInfo.innerHTML = '';
+            }
+        }
+    }
+    
+    function navigateCompare(direction, mode) {
+        if (mode === 'sync') {
+            // Synchronous navigation - move both panels
+            const newIndex = leftPhotoIndex + direction;
+            if (newIndex >= 0 && newIndex < leftPhotoList.length) {
+                leftPhotoIndex = newIndex;
+                // Try to keep right panel in sync if possible
+                if (rightPhotoIndex + direction >= 0 && rightPhotoIndex + direction < rightPhotoList.length) {
+                    rightPhotoIndex = rightPhotoIndex + direction;
+                }
+                updateCompareView();
+            }
+        } else if (mode === 'left') {
+            // Navigate left panel only
+            const newIndex = leftPhotoIndex + direction;
+            if (newIndex >= 0 && newIndex < leftPhotoList.length) {
+                leftPhotoIndex = newIndex;
+                updateCompareView();
+            }
+        } else if (mode === 'right') {
+            // Navigate right panel only
+            const newIndex = rightPhotoIndex + direction;
+            if (newIndex >= 0 && newIndex < rightPhotoList.length) {
+                rightPhotoIndex = newIndex;
+                updateCompareView();
+            }
+        }
+        
+        // Update current photo variables to match the left panel for consistent behavior
+        if (leftPhotoList.length > 0 && leftPhotoIndex < leftPhotoList.length) {
+            currentPhotoList = leftPhotoList;
+            currentPhotoIndex = leftPhotoIndex;
+        }
+    }
+    
+    function handleKeyDown(e) {
+        if (currentViewMode === 'single') {
+            if (!currentPhotoList.length) return;
+            
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                navigatePhotos(-1);
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                navigatePhotos(1);
+            }
+        } else {
+            // Compare mode keyboard navigation
+            if (e.key === 'c' || e.key === 'C') {
+                e.preventDefault();
+                switchViewMode('single');
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                if (currentNavMode === 'sync') {
+                    navigateCompare(-1, 'sync');
+                } else {
+                    navigateCompare(-1, 'left');
+                }
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                if (currentNavMode === 'sync') {
+                    navigateCompare(1, 'sync');
+                } else {
+                    navigateCompare(1, 'right');
+                }
+            }
+        }
+    }
+    
+    function handleWheel(e) {
+        if (currentViewMode === 'single') {
+            if (!currentPhotoList.length) return;
+            
+            e.preventDefault();
+            const direction = e.deltaY > 0 ? 1 : -1;
+            navigatePhotos(direction);
+        } else {
+            // Compare mode wheel navigation - sync mode only
+            e.preventDefault();
+            const direction = e.deltaY > 0 ? 1 : -1;
+            navigateCompare(direction, 'sync');
+        }
+    }
+    
+    function navigatePhotos(direction) {
+        const newIndex = currentPhotoIndex + direction;
+        
+        if (newIndex < 0 || newIndex >= currentPhotoList.length) {
+            return; // Out of bounds
+        }
+        
+        currentPhotoIndex = newIndex;
+        const photo = currentPhotoList[newIndex];
+        
+        // Update image and info
+        document.getElementById('modal-img').src = photo.url;
+        
+        const dateObj = new Date(photo.dateCreated);
+        const formattedDate = dateObj.toLocaleString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        // Format EXIF information for navigation
+        let exifHtml = '';
+        if (photo.exif_date || photo.gps_coordinates) {
+            exifHtml += '<div><strong>EXIF данные:</strong></div>';
+            if (photo.exif_date) {
+                try {
+                    const exifDateObj = new Date(photo.exif_date.replace(/:/g, '-', 2));
+                    const formattedExifDate = exifDateObj.toLocaleString('ru-RU', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                    exifHtml += `<div><strong>Дата съемки:</strong> ${formattedExifDate}</div>`;
+                } catch (e) {
+                    exifHtml += `<div><strong>Дата съемки:</strong> ${photo.exif_date}</div>`;
+                }
+            }
+            
+            // Геолокация фото - теперь отображаем понятный адрес
+            if (photo.human_address && photo.human_address !== 'Не удалось определить адрес') {
+                exifHtml += `<div><strong>Адрес съемки:</strong> ${photo.human_address}</div>`;
+            } else if (photo.gps_coordinates) {
+                // Р��зервный вариант - показываем координаты
+                exifHtml += `<div><strong>Координаты:</strong> ${photo.gps_coordinates}</div>`;
+            } else {
+                exifHtml += `<div><strong>Геолокация фото:</strong> не удалось получ��ть</div>`;
+            }
+        }
+        
+        // Use saved report author and address for consistency
+        const authorName = window.currentReportAuthor || photo.author || photo.userName || 'Неизвестный';
+        const address = window.currentReportAddress || photo.address || photo.clientAddress || 'Не указан';
+
+        document.getElementById('modal-info').innerHTML = `
+            <div><strong>Имя файла:</strong> ${photo.name}</div>
+            <div><strong>Автор:</strong> ${authorName}</div>
+            <div><strong>Дата загрузки:</strong> ${formattedDate}</div>
+            <div><strong>Адрес:</strong> ${address}</div>
+        `;
+        document.getElementById('exif-info').innerHTML = exifHtml;
+    }
+    
+    function closeModal() {
+        document.getElementById('image-modal').style.display = 'none';
+        
+        // Remove event listeners
+        document.removeEventListener('keydown', handleKeyDown);
+        document.getElementById('image-modal').removeEventListener('wheel', handleWheel);
+        
+        // Clear context
+        currentPhotoIndex = 0;
+        currentPhotoList = [];
+        leftPhotoList = [];
+        rightPhotoList = [];
+        leftPhotoIndex = 0;
+        rightPhotoIndex = 0;
+        currentViewMode = 'single';
+        currentNavMode = 'sync';
+        
+        // Reset UI
+        document.getElementById('single-view-btn').classList.add('active');
+        document.getElementById('compare-view-btn').classList.remove('active');
+        document.getElementById('sync-mode-btn').classList.add('active');
+        document.getElementById('independent-mode-btn').classList.remove('active');
+    }
+    
+    function savePersonalComment(reportId) {
+        const comment = document.getElementById(`personal-comment-${reportId}`).value;
+        fetch('{% url "tasks:save_personal_comment" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({ report_id: parseInt(reportId), comment: comment })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert('Заметка сохранена');
+            } else {
+                alert('Ошибка: ' + result.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ошибка при сохранении заметки');
+        });
+    }
+    
+    function sendToRework(reportId) {
+        const comment = document.getElementById(`rework-comment-${reportId}`).value;
+        if (!comment.trim()) {
+            alert('Пожалуйста, введите комментарий для отправки на доработку');
+            return;
+        }
+        
+        fetch('{% url "tasks:send_photo_report_to_rework" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({ report_id: parseInt(reportId), comment: comment })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert(result.message);
+                // Update status in DOM without reloading
+                const reportCard = document.getElementById(`report-${reportId}`);
+                if (reportCard) {
+                    const statusBadge = reportCard.querySelector('.labels .label');
+                    if (statusBadge) {
+                        statusBadge.className = 'label status-rework';
+                        statusBadge.textContent = 'На доработке';
+                    }
+                }
+            } else {
+                alert('Ошибка: ' + result.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ошибка при отправке на доработку');
+        });
+    }
+    
+    function processReport(reportId) {
+        const equipmentFill = document.getElementById(`rating-equipmentFill-${reportId}`).value;
+        const noForeignGoods = document.getElementById(`rating-noForeignGoods-${reportId}`).value;
+        const productDisplay = document.getElementById(`rating-productDisplay-${reportId}`).value;
+        const equipmentLocation = document.getElementById(`rating-equipmentLocation-${reportId}`).value;
+        
+        if (!equipmentFill || !noForeignGoods || !productDisplay || !equipmentLocation) {
+            alert('Пожалуйста, заполните все оценки.');
+            return;
+        }
+        
+        fetch('{% url "tasks:process_equipment_photo_report" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                report_id: parseInt(reportId),
+                equipment_fill: parseInt(equipmentFill),
+                no_foreign_goods: parseInt(noForeignGoods),
+                product_display: parseInt(productDisplay),
+                equipment_location: parseInt(equipmentLocation)
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert(result.message);
+                // Update status in DOM without reloading
+                const reportCard = document.getElementById(`report-${reportId}`);
+                if (reportCard) {
+                    const statusBadge = reportCard.querySelector('.labels .label');
+                    if (statusBadge) {
+                        // После обработки статус должен быть "На проверке" (ON_CHECK)
+                        // В API process_equipment_photo_report статус задачи обновляется на ON_CHECK
+                        // Поэтому визуально мы показываем, что отчёт обработан и находится на проверке
+                        statusBadge.className = 'label status-on-check';
+                        statusBadge.textContent = 'На проверке';
+                    }
+                    // Update moderation info (first comment-section)
+                    const sections = reportCard.querySelectorAll('.comment-section');
+                    if (sections.length > 0) {
+                        sections[0].innerHTML = `
+                            <div><strong>Обработано модератором:</strong> ${result.moderator_name} (${new Date(result.moderated_at).toLocaleString('ru-RU')})</div>
+                        `;
+                    }
+                    
+                    // Обновляем среднюю оценку
+                    const reportHeader = reportCard.querySelector('.report-header');
+                    if (reportHeader && result.average_rating !== undefined) {
+                        const avgRating = parseFloat(result.average_rating).toFixed(2);
+                        // Найдём текущую оценку в заголовке и заменим её
+                        const headerText = reportHeader.innerHTML;
+                        const updatedHeaderText = headerText.replace(/Оценка: [\d.]+/, `Оценка: ${avgRating}`);
+                        reportHeader.innerHTML = updatedHeaderText;
+                    }
+                    
+                    // Обновляем оценки в разделе rating-section
+                    const ratingSection = reportCard.querySelector('.rating-section');
+                    if (ratingSection) {
+                        const getRatingText = (value) => {
+                            if (value === null || value === undefined) return 'Не оценено';
+                            const texts = ['Плохо', 'Средне', 'Хорошо'];
+                            return texts[value - 1] || 'Некорректно';
+                        };
+                        
+                        ratingSection.innerHTML = `
+                            <div><strong>Оценки:</strong></div>
+                            <div>Наполнение оборудования: ${getRatingText(parseInt(document.getElementById(`rating-equipmentFill-${reportId}`).value))}</div>
+                            <div>Отсутствие посторонних товаров: ${getRatingText(parseInt(document.getElementById(`rating-noForeignGoods-${reportId}`).value))}</div>
+                            <div>Выкладка и оформление: ${getRatingText(parseInt(document.getElementById(`rating-productDisplay-${reportId}`).value))}</div>
+                            <div>Расположение оборудования: ${getRatingText(parseInt(document.getElementById(`rating-equipmentLocation-${reportId}`).value))}</div>
+                            <div><strong>Итоговая: ${parseFloat(result.average_rating).toFixed(2)}</strong></div>
+                        `;
+                    }
+                    
+                    // Показываем кнопку "Принять", так как отчёт теперь обработан
+                    const acceptButtonSection = reportCard.querySelector('.comment-section:last-child');
+                    if (acceptButtonSection && !acceptButtonSection.querySelector('button[onclick*="acceptReport"]')) {
+                        acceptButtonSection.insertAdjacentHTML('beforebegin', `
+                        <div class="comment-section">
+                            <button type="button" class="default" style="background: #17a2b8; color: white;" onclick="acceptReport('${reportId}')">Принять</button>
+                        </div>
+                        `);
+                    }
+                }
+            } else if (result.warning) {
+                alert(result.warning);
+            } else {
+                alert('Ош��бка: ' + (result.error || 'Неизвестная ошибка'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Произошла ошибка при обработке отчёта.');
+        });
+    }
+    
+    function acceptReport(reportId) {
+        if (!confirm('Вы уверены, что хотите принять этот отчёт?')) {
+            return;
+        }
+        
+        fetch('{% url "tasks:accept_equipment_photo_report" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({ report_id: parseInt(reportId) })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert(result.message);
+                // Update status in DOM without reloading
+                const reportCard = document.getElementById(`report-${reportId}`);
+                if (reportCard) {
+                    const statusBadge = reportCard.querySelector('.labels .label');
+                    if (statusBadge) {
+                        statusBadge.className = 'label status-accepted';
+                        statusBadge.textContent = 'Принят';
+                    }
+                }
+            } else if (result.warning) {
+                alert(result.warning);
+            } else {
+                alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Произошла ошибка при принятии отчёта.');
+        });
+    }
+    
+    function editClientStandCount(clientId, reportId) {
+        const currentCount = document.getElementById(`client-stand-count-${reportId}`).textContent;
+        const newCount = prompt('Введите новое количество стендов:', currentCount);
+        
+        if (newCount === null) return; // User cancelled
+        
+        const countValue = parseInt(newCount);
+        if (isNaN(countValue) || countValue < 0) {
+            alert('Пожалуйста, введите корректное число (неотрицательное целое).');
+            return;
+        }
+        
+        fetch('{% url "tasks:update_client_stand_count" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({ client_id: clientId, stand_count: countValue })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                // Update the display immediately
+                document.getElementById(`client-stand-count-${reportId}`).textContent = countValue;
+                alert('Количество стендов обновлено!');
+            } else {
+                alert('Ошибка: ' + result.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating client stand count:', error);
+            alert('Произошла ошибка при обновлении количества стендов.');
+        });
+    }
+    
+    function resetFilters() {
+        document.getElementById('client-search').value = '';
+        document.getElementById('task-search').value = '';
+        document.getElementById('user-select').value = '';
+        document.getElementById('client-select').value = '';
+        document.getElementById('task-select').value = '';
+        loadPhotoReports();
+    }
+    
+    function highlightText(text, highlight) {
+        if (!highlight) return text;
+        const regex = new RegExp(`(${highlight})`, 'gi');
+        return text.replace(regex, '<mark>$1</mark>');
+    }
+    
+    function initializeAutocomplete() {
+        // Client autocomplete
+        const clientSearchInput = document.getElementById('client-search');
+        let currentClientFocus = -1;
+        
+        clientSearchInput.addEventListener('input', function() {
+            const searchTerm = this.value.trim();
+            
+            if (searchTerm.length < 2) {
+                document.getElementById('client-autocomplete-list').style.display = 'none';
+                currentClientFocus = -1;
+                return;
+            }
+            
+            fetch(`/clients/autocomplete/?q=${encodeURIComponent(searchTerm)}`)
+            .then(response => response.json())
+            .then(data => {
+                const autocompleteList = document.getElementById('client-autocomplete-list');
+                autocompleteList.innerHTML = '';
+                
+                if (data && data.length > 0) {
+                    autocompleteList.style.display = 'block';
+                    
+                    data.forEach((client, index) => {
+                        const item = document.createElement('div');
+                        item.className = 'autocomplete-item';
+                        item.innerHTML = highlightText(client.name, searchTerm);
+                        item.dataset.clientId = client.id;
+                        item.dataset.clientName = client.name;
+                        
+                        item.addEventListener('click', function() {
+                            clientSearchInput.value = this.dataset.clientName;
+                            autocompleteList.innerHTML = '';
+                            autocompleteList.style.display = 'none';
+                            currentClientFocus = -1;
+                            
+                            const select = document.getElementById('client-select');
+                            select.value = this.dataset.clientId;
+                            
+                            // Note: We don't reload reports here, as auto-filter handles it
+                        });
+                        
+                        autocompleteList.appendChild(item);
+                    });
+                } else {
+                    autocompleteList.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching client autocomplete suggestions:', error);
+            });
+        });
+        
+        // Handle keyboard navigation for client search
+        clientSearchInput.addEventListener('keydown', function(e) {
+            const autocompleteList = document.getElementById('client-autocomplete-list');
+            const items = autocompleteList.querySelectorAll('.autocomplete-item');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                currentClientFocus = (currentClientFocus + 1) % items.length;
+                updateClientActiveItem(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                currentClientFocus = (currentClientFocus - 1 + items.length) % items.length;
+                updateClientActiveItem(items);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (currentClientFocus >= 0 && items[currentClientFocus]) {
+                    items[currentClientFocus].click();
+                }
+            } else if (e.key === 'Escape') {
+                autocompleteList.style.display = 'none';
+                currentClientFocus = -1;
+            }
+        });
+        
+        // Hide autocomplete when clicking outside (client)
+        document.addEventListener('click', function(e) {
+            if (e.target !== clientSearchInput && !e.target.closest('.autocomplete-container')) {
+                const autocompleteList = document.getElementById('client-autocomplete-list');
+                autocompleteList.style.display = 'none';
+                currentClientFocus = -1;
+            }
+        });
+        
+        // Function to update active client item
+        function updateClientActiveItem(items) {
+            items.forEach((item, index) => {
+                if (index === currentClientFocus) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+        
+        // Task autocomplete
+        const taskSearchInput = document.getElementById('task-search');
+        let currentTaskFocus = -1;
+        
+        taskSearchInput.addEventListener('input', function() {
+            const searchTerm = this.value.trim();
+            
+            if (searchTerm.length < 2) {
+                document.getElementById('task-autocomplete-list').style.display = 'none';
+                currentTaskFocus = -1;
+                return;
+            }
+            
+            fetch(`{% url "tasks:autocomplete_tasks" %}?q=${encodeURIComponent(searchTerm)}`)
+            .then(response => response.json())
+            .then(data => {
+                const autocompleteList = document.getElementById('task-autocomplete-list');
+                autocompleteList.innerHTML = '';
+                
+                if (data.tasks && data.tasks.length > 0) {
+                    autocompleteList.style.display = 'block';
+                    
+                    data.tasks.forEach((task, index) => {
+                        const item = document.createElement('div');
+                        item.className = 'autocomplete-item';
+                        item.innerHTML = highlightText(task.title, searchTerm);
+                        item.dataset.taskId = task.id;
+                        item.dataset.taskTitle = task.title;
+                        
+                        item.addEventListener('click', function() {
+                            taskSearchInput.value = this.dataset.taskTitle;
+                            autocompleteList.innerHTML = '';
+                            autocompleteList.style.display = 'none';
+                            currentTaskFocus = -1;
+                            
+                            const select = document.getElementById('task-select');
+                            select.value = this.dataset.taskId;
+                            
+                            // Note: We don't reload reports here
+                        });
+                        
+                        autocompleteList.appendChild(item);
+                    });
+                } else {
+                    autocompleteList.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching task autocomplete suggestions:', error);
+            });
+        });
+        
+        // Handle keyboard navigation for task search
+        taskSearchInput.addEventListener('keydown', function(e) {
+            const autocompleteList = document.getElementById('task-autocomplete-list');
+            const items = autocompleteList.querySelectorAll('.autocomplete-item');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                currentTaskFocus = (currentTaskFocus + 1) % items.length;
+                updateTaskActiveItem(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                currentTaskFocus = (currentTaskFocus - 1 + items.length) % items.length;
+                updateTaskActiveItem(items);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (currentTaskFocus >= 0 && items[currentTaskFocus]) {
+                    items[currentTaskFocus].click();
+                }
+            } else if (e.key === 'Escape') {
+                autocompleteList.style.display = 'none';
+                currentTaskFocus = -1;
+            }
+        });
+        
+        // Hide autocomplete when clicking outside (task)
+        document.addEventListener('click', function(e) {
+            if (e.target !== taskSearchInput && !e.target.closest('.autocomplete-container')) {
+                const autocompleteList = document.getElementById('task-autocomplete-list');
+                autocompleteList.style.display = 'none';
+                currentTaskFocus = -1;
+            }
+        });
+        
+        // Function to update active task item
+        function updateTaskActiveItem(items) {
+            items.forEach((item, index) => {
+                if (index === currentTaskFocus) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+    }
+</script>
+{% endblock %}

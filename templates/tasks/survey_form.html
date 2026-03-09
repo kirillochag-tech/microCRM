@@ -1,0 +1,310 @@
+{% extends 'base.html' %}
+{% load i18n form_tags static %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>{% trans 'Заполнение анкеты' %}: {{ task.title }}</h2>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">{{ task.title }}</h5>
+                    {% if task.client %}
+                        <small class="text-muted">{% trans 'Клиент' %}: {{ task.client.name }}</small>
+                    {% elif display_client %}
+                        <small class="text-muted">{% trans 'Клиент' %}: {{ display_client.name }}</small>
+                    {% else %}
+                        <small class="text-muted">{% trans 'Выберите клиента для опроса' %}</small>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <!-- Поле выбора клиента (если не задан в задаче) -->
+                        {% if task.client %}
+                            <!-- Старый способ: прямое назначение -->
+                            <div class="form-group mb-3">
+                                <label for="id_client_display">{% trans 'Клиент' %}</label>
+                                <input type="text" 
+                                       id="id_client_display" 
+                                       class="form-control" 
+                                       value="{{ task.client.name }}" 
+                                       readonly>
+                                <input type="hidden" name="selected_client_id" value="{{ task.client.id }}">
+                            </div>
+                        {% elif display_client %}
+                            <!-- Новый способ: один клиент через назначение -->
+                            <div class="form-group mb-3">
+                                <label for="id_client_display">{% trans 'Клиент' %}</label>
+                                <input type="text" 
+                                       id="id_client_display" 
+                                       class="form-control" 
+                                       value="{{ display_client.name }}" 
+                                       readonly>
+                                <input type="hidden" name="selected_client_id" value="{{ display_client.id }}">
+                            </div>
+                        {% elif task.taskclientassignment_set.exists %}
+                            <!-- Show dropdown with only assigned clients -->
+                            <div class="form-group mb-3">
+                                <label for="id_client" class="form-label">Выберите клиента:</label>
+                                <select name="selected_client_id" id="id_client" class="form-control" required>
+                                    <option value="">--- Выберите клиента ---</option>
+                                    {% for assignment in task.taskclientassignment_set.all|dictsort:"client.name" %}
+                                        <option value="{{ assignment.client.id }}">{{ assignment.client.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        {% elif not task.client %}
+                            <!-- Fallback to autocomplete search for all clients -->
+                            <div class="form-group mb-3">
+                                <label for="id_client" class="form-label">Выберите клиента:</label>
+                                <div id="client-input-container">
+                                    <input type="text" name="selected_client" id="id_client" class="form-control" required>
+                                    <div id="client-list"></div>
+                                </div>
+                                <input type="hidden" name="selected_client_id" id="selected_client_id">
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Вопросы анкеты -->
+                        {% for question in task.questions.all %}
+                            <div class="mb-4 p-3 border rounded">
+                                <h6>{{ question.question_text }}</h6>
+                                <small class="text-muted">{% trans 'Тип:' %} {{ question.get_question_type_display }}</small>
+                                
+                                {% if question.question_type == 'TEXT' %}
+                                    <textarea class="form-control" name="question_{{ question.id }}" id="question_{{ question.id }}" rows="5"></textarea>
+                                    
+                                {% elif question.question_type == 'TEXT_SHORT' %}
+                                    <input type="text" class="form-control" name="question_{{ question.id }}" id="question_{{ question.id }}" maxlength="60">
+                                    <small class="text-muted">Максимум 60 символов</small>
+                                    
+                                {% elif question.question_type == 'RADIO' %}
+                                    {% if question.has_custom_choices %}
+                                        {% for choice in question.choices.all %}
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" 
+                                                       name="question_{{ question.id }}" 
+                                                       id="question_{{ question.id }}_{{ choice.id }}" 
+                                                       value="{{ choice.id }}">
+                                                <label class="form-check-label" for="question_{{ question.id }}_{{ choice.id }}">
+                                                    {{ choice.choice_text }}
+                                                </label>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="question_{{ question.id }}" value="да" id="question_{{ question.id }}_yes">
+                                            <label class="form-check-label" for="question_{{ question.id }}_yes">Да</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="question_{{ question.id }}" value="нет" id="question_{{ question.id }}_no">
+                                            <label class="form-check-label" for="question_{{ question.id }}_no">Нет</label>
+                                        </div>
+                                    {% endif %}
+                                    
+                                {% elif question.question_type == 'CHECKBOX' %}
+                                    {% if question.has_custom_choices %}
+                                        {% for choice in question.choices.all %}
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       name="question_{{ question.id }}" 
+                                                       id="question_{{ question.id }}_{{ choice.id }}" 
+                                                       value="{{ choice.id }}">
+                                                <label class="form-check-label" for="question_{{ question.id }}_{{ choice.id }}">
+                                                    {{ choice.choice_text }}
+                                                </label>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="question_{{ question.id }}" value="да" id="question_{{ question.id }}_yes">
+                                            <label class="form-check-label" for="question_{{ question.id }}_yes">Да</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="question_{{ question.id }}" value="нет" id="question_{{ question.id }}_no">
+                                            <label class="form-check-label" for="question_{{ question.id }}_no">Нет</label>
+                                        </div>
+                                    {% endif %}
+                                    
+                                {% elif question.question_type == 'SELECT_SINGLE' %}
+                                    <select class="form-select" name="question_{{ question.id }}" id="question_{{ question.id }}">
+                                        <option value="">{% trans '---' %}</option>
+                                        {% if question.has_custom_choices %}
+                                            {% for choice in question.choices.all %}
+                                                <option value="{{ choice.id }}">{{ choice.choice_text }}</option>
+                                            {% endfor %}
+                                        {% else %}
+                                            <option value="да">Да</option>
+                                            <option value="нет">Нет</option>
+                                        {% endif %}
+                                    </select>
+                                    
+                                {% elif question.question_type == 'SELECT_MULTIPLE' %}
+                                    <select class="form-select" name="question_{{ question.id }}" id="question_{{ question.id }}" multiple>
+                                        {% if question.has_custom_choices %}
+                                            {% for choice in question.choices.all %}
+                                                <option value="{{ choice.id }}">{{ choice.choice_text }}</option>
+                                            {% endfor %}
+                                        {% else %}
+                                            <option value="да">Да</option>
+                                            <option value="нет">Нет</option>
+                                        {% endif %}
+                                    </select>
+                                    <small class="text-muted">Удерживайте Ctrl для множественного выбора</small>
+                                    
+                                {% elif question.question_type == 'PHOTO' %}
+                                    <div class="photo-upload-container">
+                                        <div id="photo-preview-container-question_{{ question.id }}" class="photo-preview-container"></div>
+                                        <input type="file" 
+                                               name="question_{{ question.id }}" 
+                                               id="question_{{ question.id }}" 
+                                               accept="image/*" 
+                                               multiple 
+                                               style="display: none;"
+                                               onchange="handleFileSelect(event, 'question_{{ question.id }}')">
+                                        <button type="button" 
+                                                class="btn btn-secondary add-photo-btn"
+                                                onclick="document.getElementById('question_{{ question.id }}').click()">
+                                            📷 Добавить фото
+                                        </button>
+                                        <small class="text-muted mt-2">Можно добавить несколько фото.</small>
+                                    </div>
+                                {% endif %}
+                                
+                                {% if form|get_item:question.id and form|get_item:question.id.errors %}
+                                    <div class="text-danger">{{ form|get_item:question.id.errors }}</div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'tasks:task_detail' task.pk %}" class="btn btn-secondary">{% trans 'Назад' %}</a>
+                            <button type="submit" class="btn btn-primary">{% trans 'Отправить анкету' %}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if not task.client %}
+        <script src="{% static 'js/client_search.js' %}"></script>
+        <link rel="stylesheet" href="{% static 'css/client_search.css' %}">
+    {% endif %}
+</div>
+<style>
+.photo-preview-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 10px 0;
+}
+.photo-preview-item {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.photo-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.photo-preview-item button {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: red;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    font-size: 12px;
+}
+.file-name {
+    display: block;
+    font-size: 10px;
+    text-align: center;
+    padding: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.add-photo-btn {
+    margin-top: 10px;
+}
+</style>
+
+<script>
+// Глобальный объект для хранения выбранных файлов по каждому вопросу
+window.selectedFiles = {};
+
+function handleFileSelect(event, fieldName) {
+    const files = event.target.files;
+    const container = document.getElementById(`photo-preview-container-${fieldName}`);
+    
+    // Инициализируем массив файлов для этого поля, если его нет
+    if (!window.selectedFiles[fieldName]) {
+        window.selectedFiles[fieldName] = [];
+    }
+    
+    // Добавляем новые файлы к уже выбранным
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        window.selectedFiles[fieldName].push(file);
+        
+        // Создаём превью
+        const preview = document.createElement('div');
+        preview.className = 'photo-preview-item';
+        preview.innerHTML = `
+            <img src="${URL.createObjectURL(file)}" alt="Preview">
+            <span class="file-name">${file.name}</span>
+            <button type="button" onclick="removeFile('${fieldName}', ${window.selectedFiles[fieldName].length - 1})">✕</button>
+        `;
+        container.appendChild(preview);
+    }
+    
+    // Обновляем значение скрытого инпута (это нужно для отправки формы)
+    updateFileInput(fieldName);
+}
+
+function removeFile(fieldName, index) {
+    window.selectedFiles[fieldName].splice(index, 1);
+    updateFileInput(fieldName);
+    // Перерисовываем превью
+    renderPreviews(fieldName);
+}
+
+function updateFileInput(fieldName) {
+    const input = document.getElementById(`${fieldName}`);
+    const dt = new DataTransfer();
+    const files = window.selectedFiles[fieldName] || [];
+    for (const file of files) {
+        dt.items.add(file);
+    }
+    input.files = dt.files;
+}
+
+function renderPreviews(fieldName) {
+    const container = document.getElementById(`photo-preview-container-${fieldName}`);
+    container.innerHTML = '';
+    const files = window.selectedFiles[fieldName] || [];
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const preview = document.createElement('div');
+        preview.className = 'photo-preview-item';
+        preview.innerHTML = `
+            <img src="${URL.createObjectURL(file)}" alt="Preview">
+            <span class="file-name">${file.name}</span>
+            <button type="button" onclick="removeFile('${fieldName}', ${i})">✕</button>
+        `;
+        container.appendChild(preview);
+    }
+}
+</script>
+{% endblock %}

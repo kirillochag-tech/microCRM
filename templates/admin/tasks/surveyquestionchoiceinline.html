@@ -1,0 +1,38 @@
+{% load i18n admin_urls static admin_modify %}
+<div class="inline-group" id="{{ inline_admin_formset.formset.prefix }}-group">
+  <div class="tabular inline-related {% if inline_admin_formset.opts.classes %}{{ inline_admin_formset.opts.classes|join:" " }}{% endif %}">
+    {{ inline_admin_formset.formset.management_form }}
+    {{ inline_admin_formset.formset.non_form_errors }}
+    <table>
+      <thead>
+        <tr>
+          {% for field in inline_admin_formset.fields %}
+            {% if not field.widget.is_hidden %}
+              <th{% if field.required %} class="required"{% endif %}>{{ field.label|capfirst }}</th>
+            {% endif %}
+          {% endfor %}
+          {% if inline_admin_formset.formset.can_delete %}<th>{% trans "Delete?" %}</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for inline_admin_form in inline_admin_formset %}
+          {% if inline_admin_form.original or inline_admin_form.show_url or inline_admin_formset.has_add_permission %}
+            <tr class="{% cycle "row1" "row2" %} {% if inline_admin_form.original %}original{% endif %}">
+              {% for field in inline_admin_form %}
+                {% if not field.is_hidden %}
+                  <td{% if field.field.name %} class="field-{{ field.field.name }}"{% endif %}>
+                    {{ field.errors.as_ul }}
+                    {{ field }}
+                  </td>
+                {% endif %}
+              {% endfor %}
+              {% if inline_admin_formset.formset.can_delete %}
+                <td class="delete">{% if inline_admin_form.original %}{{ inline_admin_form.deletion_field }}{% endif %}</td>
+              {% endif %}
+            </tr>
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

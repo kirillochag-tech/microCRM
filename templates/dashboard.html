@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            
+            <p>{% trans 'Добро пожаловать в систему управления сотрудниками!' %}</p>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">{% trans 'Активные задачи' %}</h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">{% trans 'У вас' %} {{ active_tasks_count }} {% trans 'активных задач' %}</p>
+                    <a href="{% url 'tasks:task_list' %}" class="btn btn-primary w-100">{% trans 'Посмотреть задачи' %}</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">{% trans 'Статистика' %}</h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">{% trans 'Процент выполнения:' %} {{ completion_rate }}%</p>
+                    <div class="progress mt-3">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ completion_rate }}%" aria-valuenow="{{ completion_rate }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        {% trans 'Сообщения' %}
+                        {% if user_announcements %}
+                            <small class="text-muted">({{ user_announcements|length }})</small>
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if user_announcements %}
+                        <!-- Simple Carousel -->
+                        <div id="announcementsCarousel" class="carousel slide mx-3" data-bs-ride="carousel" data-bs-interval="8000">
+                            <div class="carousel-inner">
+                                {% for announcement in user_announcements %}
+                                <div class="carousel-item {% if forloop.first %}active{% endif %}" id="announcement-card-{{ announcement.id }}">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h6 class="card-title text-primary">{{ announcement.title }}</h6>
+                                            <p class="card-text">{{ announcement.content|truncatechars:150 }}</p>
+                                            <small class="text-muted d-block mb-1">
+                                                {% trans 'Автор:' %} {{ announcement.author.get_full_name|default:announcement.author.username }} |
+                                                {{ announcement.created_at|date:"d.m.Y H:i" }}
+                                            </small>
+                                            {% if announcement.requires_acknowledgment and not announcement.is_acknowledged %}
+                                                <form method="post" action="{% url 'announcements:mark_read' announcement.id %}" class="d-inline acknowledge-form">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="acknowledge" value="true">
+                                                    <button type="submit" class="btn btn-sm btn-warning">{% trans 'Я ознакомлен!' %}</button>
+                                                </form>
+                                            {% elif announcement.requires_acknowledgment %}
+                                                <span class="badge bg-success">{% trans 'Подтверждено' %}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <!-- Custom, always visible arrows INSIDE the carousel -->
+                        {% if user_announcements|length > 1 %}
+                        <style>
+                            .carousel-arrow { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.3); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; z-index: 10; }
+                            .carousel-arrow.left { left: 10px; }
+                            .carousel-arrow.right { right: 10px; }
+                        </style>
+                        <button type="button" class="carousel-arrow left" data-bs-target="#announcementsCarousel" data-bs-slide="prev">
+                            ‹
+                        </button>
+                        <button type="button" class="carousel-arrow right" data-bs-target="#announcementsCarousel" data-bs-slide="next">
+                            ›
+                        </button>
+
+                        <!-- Button to all announcements MOVED to the bottom -->
+                        <div class="text-center mt-2 mb-2">
+                            <a href="{% url 'announcements:all' %}" class="btn btn-sm btn-outline-primary">{% trans 'Все сообщения' %}</a>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <p class="card-text text-muted text-center m-3">{% trans 'Нет новых сообщений' %}</p>
+                        <!-- Button to all announcements for empty state -->
+                        <div class="text-center mt-2 mb-2">
+                            <a href="{% url 'announcements:all' %}" class="btn btn-sm btn-outline-primary">{% trans 'Все сообщения' %}</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Daily Task Widget Section -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            {% include 'tasks/daily_task_widget.html' %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

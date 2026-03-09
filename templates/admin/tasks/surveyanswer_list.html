@@ -1,0 +1,620 @@
+{% extends "admin/base.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; {{ opts.verbose_name_plural|capfirst }}
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+    .filter-container {
+        background: #f8f8f8;
+        padding: 15px;
+        border: 1px solid #ddd;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+    
+    .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-start;
+        margin-bottom: 10px;
+    }
+    
+    .filter-item {
+        display: flex;
+        flex-direction: column;
+        min-width: 150px;
+        max-width: 250px;
+    }
+    
+    .filter-item label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        font-size: 13px;
+    }
+    
+    .filter-item select, .filter-item input {
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+    }
+    
+    .filter-item-wide {
+        min-width: 300px;
+        flex: 1;
+    }
+    
+    .filter-row.compact {
+        gap: 10px;
+    }
+    
+    .filter-row.compact .filter-item {
+        min-width: 120px;
+    }
+    
+    .filter-row.compact .filter-item-wide {
+        min-width: 200px;
+    }
+    
+    .filter-buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+    }
+    
+    .export-section {
+        margin-top: 20px;
+        padding: 15px;
+        background: #eef7ff;
+        border: 1px solid #b8daff;
+        border-radius: 4px;
+    }
+    
+    /* Autocomplete styles */
+    .autocomplete-container {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+    }
+    
+    .autocomplete-results {
+        position: absolute;
+        z-index: 1000;
+        background: white;
+        border: 1px solid #ccc;
+        border-top: none;
+        max-height: 200px;
+        overflow-y: auto;
+        width: 100%;
+        display: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-radius: 0 0 4px 4px;
+    }
+    
+    .autocomplete-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+        transition: background-color 0.2s;
+    }
+    
+    .autocomplete-item:hover, .autocomplete-item.active {
+        background-color: #f0f8ff;
+    }
+    
+    .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+
+    .text-answer-expanded {
+        white-space: pre-wrap;
+        max-height: 200px;
+        overflow-y: auto;
+        background-color: #f9f9f9;
+        padding: 10px;
+        border-radius: 4px;
+        border: 1px solid #eee;
+    }
+    
+    .text-answer-collapsed {
+        cursor: pointer;
+        color: #0056b3;
+    }
+    
+    .photo-preview {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+    }
+    
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.8);
+    }
+    
+    .modal-content {
+        margin: auto;
+        display: block;
+        max-width: 80%;
+        max-height: 80%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+    
+    .close {
+        position: absolute;
+        top: 15px;
+        right: 35px;
+        color: #f1f1f1;
+        font-size: 40px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    
+    .pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+    }
+    
+    .pagination a, .pagination span {
+        padding: 8px 12px;
+        margin: 0 4px;
+        text-decoration: none;
+        border: 1px solid #ddd;
+        color: #007cba;
+    }
+    
+    .pagination a:hover {
+        background-color: #f0f0f0;
+    }
+    
+    .pagination .current {
+        background-color: #007cba;
+        color: white;
+    }
+</style>
+
+<div class="module">
+    <!-- Filter Section -->
+    <div class="filter-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3>Фильтры</h3>
+            <a href="{% url 'admin:surveyanswer_list' %}" class="button">Сбросить фильтры</a>
+        </div>
+        <form method="GET" id="filter-form">
+            <div class="filter-row compact" style="flex-wrap: wrap;">
+                <div class="filter-item" style="min-width: 180px; max-width: 220px;">
+                    <label for="client-search">Клиент:</label>
+                    <input type="text" id="client-search" name="client_search" placeholder="Поиск..." value="{{ current_filters.client_search|default:'' }}">
+                    <select name="client" id="client-select">
+                        <option value="">Все клиенты</option>
+                        {% for client in clients %}
+                            <option value="{{ client.id }}" {% if current_filters.client|add:"0" == client.id %}selected{% endif %}>
+                                {{ client.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-item" style="min-width: 180px; max-width: 220px;">
+                    <label for="task-search">Задача:</label>
+                    <div class="autocomplete-container">
+                        <input type="text" id="task-search" name="task_search" placeholder="Поиск..." value="{{ current_filters.task_search|default:'' }}">
+                        <div id="task-autocomplete-results" class="autocomplete-results"></div>
+                    </div>
+                    <select name="task" id="task-select">
+                        <option value="">Все задачи</option>
+                        {% for task in tasks %}
+                            <option value="{{ task.id }}" {% if current_filters.task|add:"0" == task.id %}selected{% endif %}>
+                                {{ task.title }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-item" style="min-width: 160px; max-width: 200px;">
+                    <label for="user">Сотрудник:</label>
+                    <select name="user" id="user-select">
+                        <option value="">Все сотрудники</option>
+                        {% for user in users %}
+                            <option value="{{ user.id }}" {% if current_filters.user|add:"0" == user.id %}selected{% endif %}>
+                                {{ user.get_full_name|default:user.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-item" style="min-width: 160px; max-width: 200px;">
+                    <label for="moderator">Модератор:</label>
+                    <select name="moderator" id="moderator-select">
+                        <option value="">Все модераторы</option>
+                        {% for user in moderators %}
+                            <option value="{{ user.id }}" {% if current_filters.moderator|add:"0" == user.id %}selected{% endif %}>
+                                {{ user.get_full_name|default:user.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-item" style="min-width: 180px; max-width: 200px;">
+                    <label for="task_type">Тип задачи:</label>
+                    <select name="task_type" id="task_type-select">
+                        <option value="">Все типы</option>
+                        <option value="SURVEY" {% if current_filters.task_type == 'SURVEY' %}selected{% endif %}>Анкета</option>
+                        <option value="EQUIPMENT_PHOTO" {% if current_filters.task_type == 'EQUIPMENT_PHOTO' %}selected{% endif %}>Фотоотчет по оборудованию</option>
+                        <option value="SIMPLE_PHOTO" {% if current_filters.task_type == 'SIMPLE_PHOTO' %}selected{% endif %}>Фотоотчет простой</option>
+                    </select>
+                </div>
+                
+                <div class="filter-item" style="min-width: 140px; max-width: 160px;">
+                    <label for="date_filter">Дата:</label>
+                    <select name="date_filter" id="date_filter-select">
+                        <option value="">Все даты</option>
+                        <option value="today" {% if current_filters.date_filter == 'today' %}selected{% endif %}>Сегодня</option>
+                        <option value="yesterday" {% if current_filters.date_filter == 'yesterday' %}selected{% endif %}>Вчера</option>
+                        <option value="week" {% if current_filters.date_filter == 'week' %}selected{% endif %}>Неделя</option>
+                    </select>
+                </div>
+                
+                <div class="filter-item" style="min-width: 140px;">
+                    <label for="date_from">С даты:</label>
+                    <input type="date" name="date_from" id="date_from" value="{{ current_filters.date_from|default:'' }}">
+                </div>
+                
+                <div class="filter-item" style="min-width: 140px;">
+                    <label for="date_to">По дату:</label>
+                    <input type="date" name="date_to" id="date_to" value="{{ current_filters.date_to|default:'' }}">
+                </div>
+            </div>
+            
+            <div class="filter-buttons">
+                <button type="submit" class="default">Применить фильтры</button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Export Section -->
+    <div class="export-section">
+        <h3>Экспорт данных</h3>
+        <p>Выберите задачу для экспорта всех ответов в Excel:</p>
+        <select id="export-task-select">
+            <option value="">Выберите задачу...</option>
+            {% for task in tasks %}
+                <option value="{{ task.id }}">{{ task.title }}</option>
+            {% endfor %}
+        </select>
+        <button onclick="exportToExcel()" class="default">Экспортировать в Excel</button>
+    </div>
+    
+    <!-- Link to Tasks Page -->
+    <div style="margin-top: 20px; padding: 10px; background: #f0f8ff; border: 1px solid #b0d4ff; border-radius: 4px;">
+        <a href="{% url 'admin:tasks_task_changelist' %}" style="display: inline-block; padding: 8px 15px; background: #007cba; color: white; text-decoration: none; border-radius: 3px;">Перейти на страницу задач</a>
+    </div>
+    
+    <!-- Results Table -->
+    <div class="results">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Клиент</th>
+                    <th>Сотрудник</th>
+                    <th>Модератор</th>
+                    <th>Задача</th>
+                    <th>Вопрос</th>
+                    <th>Дата ответа</th>
+                    <th>Выбранные варианты</th>
+                    <th>Текстовый ответ</th>
+                    <th>Фото</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for answer in page_obj %}
+                <tr>
+                    <td>{{ answer.client.name }}</td>
+                    <td>{{ answer.user.get_full_name|default:answer.user.username }}</td>
+                    <td>{{ answer.question.task.created_by.get_full_name|default:answer.question.task.created_by.username }}</td>
+                    <td>{{ answer.question.task.title }}</td>
+                    <td>{{ answer.question.question_text }}</td>
+                    <td>{{ answer.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>
+                        {% if answer.selected_choices.exists %}
+                            {% for choice in answer.selected_choices.all %}
+                                {{ choice.choice_text }}{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if answer.text_answer %}
+                            {% if answer.text_answer|length > 100 %}
+                                <span class="text-answer-collapsed" onclick="toggleText(this)">
+                                    {{ answer.text_answer|truncatechars:100 }}
+                                    <br><small style="color: #0056b3;">Показать полностью...</small>
+                                </span>
+                                <div class="text-answer-expanded" style="display: none;">
+                                    {{ answer.text_answer|linebreaks }}
+                                </div>
+                            {% else %}
+                                {{ answer.text_answer|linebreaks }}
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if answer.photos.exists %}
+                            {% for photo in answer.photos.all %}
+                                <img src="{{ photo.photo.url }}" alt="Фото" class="photo-preview" onclick="showModal('{{ photo.photo.url }}')">
+                            {% endfor %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="text-align: center;">Нет данных для отображения</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+                <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1">&laquo; первая</a>
+                <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">предыдущая</a>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <span class="current">{{ num }}</span>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+                <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">следующая</a>
+                <a href="?{% for key, value in current_filters.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}">последняя &raquo;</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal for image preview -->
+<div id="image-modal" class="modal">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <img class="modal-content" id="modal-img">
+</div>
+
+<script>
+// Client search with autocomplete - case insensitive
+const clientSearchInput = document.getElementById('client-search');
+if (clientSearchInput) {
+    clientSearchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const select = document.getElementById('client-select');
+        
+        // Show/hide options based on search term (case insensitive)
+        for (let i = 0; i < select.options.length; i++) {
+            const option = select.options[i];
+            if (option.text.toLowerCase().includes(searchTerm) || searchTerm === '') {
+                option.style.display = '';
+            } else {
+                option.style.display = 'none';
+            }
+        }
+        
+        // If there's only one matching option and user pressed Enter, select it
+        if (event.key === 'Enter' && searchTerm) {
+            event.preventDefault();
+            for (let i = 0; i < select.options.length; i++) {
+                const option = select.options[i];
+                if (option.text.toLowerCase().includes(searchTerm) && option.style.display !== 'none') {
+                    option.selected = true;
+                    break;
+                }
+            }
+        }
+    });
+}
+
+// Function to highlight matching text
+function highlightText(text, highlight) {
+    if (!highlight) return text;
+    const regex = new RegExp(`(${escapeRegExp(highlight)})`, 'gi');
+    return text.replace(regex, '<strong>$1</strong>');
+}
+
+// Function to escape special characters for regex
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&');
+}
+
+// Task search with autocomplete
+const taskSearchInput = document.getElementById('task-search');
+if (taskSearchInput) {
+    let currentTaskFocus = -1;
+    let taskAutocompleteItems = [];
+
+    taskSearchInput.addEventListener('input', function() {
+        const searchTerm = this.value.trim();
+        const autocompleteList = document.getElementById('task-autocomplete-results');
+
+        // Clear previous items
+        autocompleteList.innerHTML = '';
+        currentTaskFocus = -1;
+
+        if (searchTerm.length < 1) {
+            autocompleteList.style.display = 'none';
+            return;
+        }
+
+        // Fetch autocomplete suggestions
+        fetch(`${window.location.origin}/admin/tasks/surveyanswer/autocomplete_tasks/?q=${encodeURIComponent(searchTerm)}`)
+            .then(response => response.json())
+            .then(data => {
+                taskAutocompleteItems = data.tasks || [];
+
+                if (taskAutocompleteItems.length === 0) {
+                    autocompleteList.style.display = 'none';
+                    return;
+                }
+
+                autocompleteList.style.display = 'block';
+
+                taskAutocompleteItems.forEach((task, index) => {
+                    const item = document.createElement('div');
+                    item.classList.add('autocomplete-item');
+                    item.innerHTML = highlightText(task.title, searchTerm);
+                    item.dataset.taskId = task.id;
+                    item.dataset.taskTitle = task.title;
+
+                    item.addEventListener('click', function() {
+                        taskSearchInput.value = this.dataset.taskTitle;
+                        autocompleteList.innerHTML = '';
+                        autocompleteList.style.display = 'none';
+                        currentTaskFocus = -1;
+
+                        // Update the hidden select element with the exact task ID
+                        const select = document.getElementById('task-select');
+                        select.value = this.dataset.taskId;
+                        
+                        // Submit the form to apply the filter
+                        document.getElementById('filter-form').submit();
+                    });
+
+                    autocompleteList.appendChild(item);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching task autocomplete suggestions:', error);
+            });
+    });
+
+    // Handle keyboard navigation
+    taskSearchInput.addEventListener('keydown', function(e) {
+        const autocompleteList = document.getElementById('task-autocomplete-results');
+        const items = autocompleteList.querySelectorAll('.autocomplete-item');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentTaskFocus = (currentTaskFocus + 1) % items.length;
+            updateTaskActiveItem(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentTaskFocus = (currentTaskFocus - 1 + items.length) % items.length;
+            updateTaskActiveItem(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (currentTaskFocus >= 0 && items[currentTaskFocus]) {
+                items[currentTaskFocus].click();
+            } else if (taskSearchInput.value.trim() === '') {
+                // If search is empty and Enter is pressed, submit the form
+                document.getElementById('filter-form').submit();
+            }
+        } else if (e.key === 'Escape') {
+            autocompleteList.style.display = 'none';
+            currentTaskFocus = -1;
+        }
+    });
+
+    // Hide autocomplete when clicking outside
+    document.addEventListener('click', function(e) {
+        if (e.target !== taskSearchInput && !e.target.closest('.autocomplete-container')) {
+            const autocompleteList = document.getElementById('task-autocomplete-results');
+            autocompleteList.style.display = 'none';
+            currentTaskFocus = -1;
+        }
+    });
+
+    // Function to update active task item
+    function updateTaskActiveItem(items) {
+        items.forEach((item, index) => {
+            if (index === currentTaskFocus) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+    }
+}
+
+function toggleText(element) {
+    const collapsed = element;
+    const expanded = element.nextElementSibling;
+    
+    if (expanded.style.display === 'none') {
+        collapsed.style.display = 'none';
+        expanded.style.display = 'block';
+    } else {
+        expanded.style.display = 'none';
+        collapsed.style.display = 'inline';
+    }
+}
+
+function showModal(imageSrc) {
+    const modal = document.getElementById('image-modal');
+    const modalImg = document.getElementById('modal-img');
+    
+    modal.style.display = 'block';
+    modalImg.src = imageSrc;
+}
+
+function closeModal() {
+    const modal = document.getElementById('image-modal');
+    modal.style.display = 'none';
+}
+
+function exportToExcel() {
+    const taskId = document.getElementById('export-task-select').value;
+    if (!taskId) {
+        alert('Пожалуйста, выберите задачу для экспорта');
+        return;
+    }
+    
+    window.location.href = '/admin/tasks/surveyanswer/export-excel/' + taskId + '/';
+}
+
+// Close modal when clicking outside the image
+document.getElementById('image-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeModal();
+    }
+});
+
+// Handle Enter key in search fields to submit form
+document.getElementById('filter-form').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('filter-form').submit();
+    }
+});
+</script>
+{% endblock %}

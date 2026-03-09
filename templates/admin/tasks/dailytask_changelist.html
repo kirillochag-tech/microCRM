@@ -1,0 +1,556 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static admin_modify admin_list %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'tasks/admin/dailytask_admin.css' %}">
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    {% block object-tools %}
+        {% if has_add_permission %}
+        <ul class="object-tools">
+            {% block object-tools-items %}
+            <li>
+                <a href="{% url 'admin:tasks_dailytask_add' %}" class="addlink">
+                    {% trans 'Добавить задачу' %}
+                </a>
+            </li>
+            {% endblock %}
+        </ul>
+        {% endif %}
+    {% endblock %}
+
+    {% if cl.formset and cl.formset.errors %}
+        <div class="errors">
+            {{ cl.formset.non_form_errors }}
+        </div>
+    {% endif %}
+
+    <div id="changelist" class="aligned">
+        <div class="changelist-form-container">
+            <div class="view-toggle">
+                <button type="button" class="active" onclick="showCardView()">Карточки</button>
+                <button type="button" onclick="showTableView()">Таблица</button>
+            </div>
+
+            {% block search %}
+            {% if cl.search_fields %}
+            <div id="toolbar">
+                <form id="changelist-search" method="get" role="search">
+                    <div>
+                        <label for="searchbar">
+                            <img src="{% static 'admin/img/search.svg' %}" alt="Search">
+                        </label>
+                        <input type="text" size="40" name="q" value="{{ cl.query }}" id="searchbar">
+                        <input type="submit" value="Найти">
+                        
+                        <!-- Дополнительные фильтры: дата и сотрудник -->
+                        <span class="filter-separator"></span>
+                        
+                        <input type="date" id="id_date_filter" name="date__gte" value="{{ request.GET.date__gte }}">
+                        
+                        <select id="id_employee_filter" name="assignee__exact" title="Сотрудник">
+                            <option value="">Все сотрудники</option>
+                            {% for employee in employees %}
+                            <option value="{{ employee.id }}" {% if request.GET.assignee__exact == employee.id|stringformat:"s" %}selected{% endif %}>
+                                {{ employee.get_full_name|default:employee.username }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        
+                        <button type="button" class="filter-btn group-btn" id="group-toggle" title="Группировать по сотрудникам" onclick="toggleGrouping()">👥</button>
+                        <button type="button" class="filter-btn" title="Применить фильтры" onclick="applyFilters()">✓</button>
+                        <a href="javascript:void(0)" class="clear-filters" title="Очистить фильтры" onclick="clearFilters()">✕</a>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+            {% endblock %}
+
+            <form id="changelist-form" method="post"{% if cl.formset.is_multipart %} enctype="multipart/form-data"{% endif %} novalidate>
+                {% csrf_token %}
+
+                {% result_list cl %}
+
+                <!-- Контейнер для группированного вида -->
+                <div class="task-cards-container" id="grouped-container" style="display: none;">
+                    <button type="button" class="expand-all-btn" onclick="toggleAllGroups()">Развернуть все / Свернуть все</button>
+                    <div id="grouped-tasks-content"></div>
+                </div>
+
+                <!-- Контейнер для обычного вида -->
+                <div class="task-cards-container" id="task-cards-container" style="display: block !important;">
+                    <button type="button" class="expand-all-btn" onclick="toggleAllTasks()">Развернуть все / Свернуть все</button>
+
+                    {% if tasks %}
+                    {% for task in tasks %}
+                    <div class="task-card" data-task-id="{{ task.id }}" data-assignee="{{ task.assignee.id }}">
+                        <div class="task-card-header" onclick="toggleTaskCard(this)">
+                            <h4>
+                                <span class="task-date">{{ task.date }}</span>
+                                <span class="task-client">{{ task.client.name|default:"Без клиента" }}</span>
+                                <span class="task-assignee">{{ task.assignee.username|default:"—" }}</span>
+                                <span class="task-status {{ task.status }}">{{ task.get_status_display }}</span>
+                                <span class="task-priority priority-{{ task.priority }}">{{ task.get_priority_display }}</span>
+                                <span class="toggle-icon">▼</span>
+                            </h4>
+                        </div>
+                        <div class="task-card-body">
+                            <div class="task-detail-row">
+                                <div class="task-detail-item">
+                                    <label>Автор:</label>
+                                    <span class="value">{{ task.creator.username }}</span>
+                                </div>
+                                <div class="task-detail-item">
+                                    <label>Дата создания:</label>
+                                    <span class="value">{{ task.created_at|date:"d.m.Y H:i" }}</span>
+                                </div>
+                            </div>
+
+                            <div class="task-detail-row">
+                                <div class="task-detail-item">
+                                    <label>Описание:</label>
+                                    <span class="value">{{ task.description|truncatewords:15|default:"—" }}</span>
+                                </div>
+                            </div>
+
+                            {% if task.result %}
+                            <div class="task-result">
+                                <label><strong>Результат:</strong></label>
+                                <p style="margin: 5px 0 0 0;">{{ task.result }}</p>
+                            </div>
+                            {% endif %}
+
+                            <div class="task-actions">
+                                <label>Статус:</label>
+                                <select name="status_{{ task.id }}" id="id_status_{{ task.id }}">
+                                    <option value="active"{% if task.status == 'active' %} selected{% endif %}>Активная</option>
+                                    <option value="completed"{% if task.status == 'completed' %} selected{% endif %}>Завершенная</option>
+                                    <option value="hidden"{% if task.status == 'hidden' %} selected{% endif %}>Скрытая</option>
+                                </select>
+
+                                <label>Приоритет:</label>
+                                <select name="priority_{{ task.id }}" id="id_priority_{{ task.id }}">
+                                    <option value="1"{% if task.priority == 1 %} selected{% endif %}>Низкий</option>
+                                    <option value="2"{% if task.priority == 2 %} selected{% endif %}>Средний</option>
+                                    <option value="3"{% if task.priority == 3 %} selected{% endif %}>Высокий</option>
+                                </select>
+
+                                <button type="button" onclick="saveTaskChanges(event, {{ task.id }})">Сохранить</button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p>{% trans 'Задачи не найдены.' %}</p>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        {% block filters %}
+        {% if cl.has_filters %}
+        <div id="changelist-filter">
+            <h2>{% trans 'Фильтры' %}</h2>
+            {% for spec in cl.filter_specs %}
+                {% admin_list_filter cl spec %}
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endblock %}
+    </div>
+</div>
+
+<script>
+function toggleTaskCard(header) {
+    const card = header.closest('.task-card');
+    const body = card.querySelector('.task-card-body');
+    header.classList.toggle('collapsed');
+    body.classList.toggle('collapsed');
+}
+
+function toggleAllTasks() {
+    const cards = document.querySelectorAll('.task-card');
+    const allCollapsed = Array.from(cards).every(card =>
+        card.querySelector('.task-card-body').classList.contains('collapsed')
+    );
+
+    cards.forEach(card => {
+        const header = card.querySelector('.task-card-header');
+        const body = card.querySelector('.task-card-body');
+        if (allCollapsed) {
+            header.classList.remove('collapsed');
+            body.classList.remove('collapsed');
+        } else {
+            header.classList.add('collapsed');
+            body.classList.add('collapsed');
+        }
+    });
+}
+
+function saveTaskChanges(event, taskId) {
+    const statusSelect = document.getElementById('id_status_' + taskId);
+    const prioritySelect = document.getElementById('id_priority_' + taskId);
+    const saveButton = event.target;
+
+    const originalText = saveButton.textContent;
+    saveButton.textContent = 'Сохранение...';
+    saveButton.disabled = true;
+
+    const formData = new FormData();
+    formData.append('status', statusSelect.value);
+    formData.append('priority', prioritySelect.value);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    formData.append('_continue', '1');
+
+    fetch('/admin/tasks/dailytask/' + taskId + '/change/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            saveButton.textContent = 'Сохранено!';
+            saveButton.classList.add('save-success');
+
+            const card = saveButton.closest('.task-card');
+            const statusBadge = card.querySelector('.task-status');
+            const priorityBadge = card.querySelector('.task-priority');
+
+            const statusLabels = {
+                'active': 'Активная',
+                'completed': 'Завершенная',
+                'hidden': 'Скрытая'
+            };
+            const priorityLabels = {
+                '1': 'Низкий',
+                '2': 'Средний',
+                '3': 'Высокий'
+            };
+
+            statusBadge.className = 'task-status ' + statusSelect.value;
+            statusBadge.textContent = statusLabels[statusSelect.value];
+
+            priorityBadge.className = 'task-priority priority-' + prioritySelect.value;
+            priorityBadge.textContent = priorityLabels[prioritySelect.value];
+
+            setTimeout(() => {
+                saveButton.textContent = originalText;
+                saveButton.classList.remove('save-success');
+                saveButton.disabled = false;
+            }, 2000);
+        } else {
+            saveButton.textContent = 'Ошибка!';
+            saveButton.classList.add('save-error');
+            setTimeout(() => {
+                saveButton.textContent = originalText;
+                saveButton.classList.remove('save-error');
+                saveButton.disabled = false;
+            }, 2000);
+        }
+    })
+    .catch(error => {
+        console.error('Error saving task:', error);
+        saveButton.textContent = 'Ошибка!';
+        saveButton.classList.add('save-error');
+        setTimeout(() => {
+            saveButton.textContent = originalText;
+            saveButton.classList.remove('save-error');
+            saveButton.disabled = false;
+        }, 2000);
+    });
+}
+
+function showCardView() {
+    const resultsEl = document.querySelector('#changelist .results');
+    const cardsContainer = document.getElementById('task-cards-container');
+    if (resultsEl) resultsEl.style.display = 'none';
+    if (cardsContainer) cardsContainer.style.display = 'block';
+    document.querySelectorAll('.view-toggle button')[0].classList.add('active');
+    document.querySelectorAll('.view-toggle button')[1].classList.remove('active');
+}
+
+function showTableView() {
+    const resultsEl = document.querySelector('#changelist .results');
+    const cardsContainer = document.getElementById('task-cards-container');
+    if (resultsEl) resultsEl.style.display = 'block';
+    if (cardsContainer) cardsContainer.style.display = 'none';
+    document.querySelectorAll('.view-toggle button')[0].classList.remove('active');
+    document.querySelectorAll('.view-toggle button')[1].classList.add('active');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Инициализация: скрыть таблицу, показать карточки
+    const resultsEl = document.querySelector('#changelist .results');
+    const cardsContainer = document.getElementById('task-cards-container');
+    if (resultsEl) resultsEl.style.display = 'none';
+    if (cardsContainer) cardsContainer.style.display = 'block';
+
+    // Свёрнуть все карточки
+    const cards = document.querySelectorAll('.task-card');
+    cards.forEach((card) => {
+        const header = card.querySelector('.task-card-header');
+        const body = card.querySelector('.task-card-body');
+        if (header && body) {
+            header.classList.add('collapsed');
+            body.classList.add('collapsed');
+        }
+    });
+    
+    // Восстановление состояния группировки из URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('grouped') && urlParams.get('grouped') === '1') {
+        // Небольшая задержка для полного завершения инициализации
+        setTimeout(function() {
+            toggleGrouping();
+        }, 100);
+    }
+    
+    // Перехват кликов по ссылкам фильтров в правой панели
+    const filterLinks = document.querySelectorAll('#changelist-filter a');
+    filterLinks.forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            if (isGrouped) {
+                e.preventDefault();
+                const href = this.getAttribute('href');
+                if (href) {
+                    // Добавляем параметр grouped к URL фильтра
+                    const separator = href.indexOf('?') === -1 ? '?' : '&';
+                    window.location.href = href + separator + 'grouped=1';
+                }
+            }
+        });
+    });
+    
+    // Перехват клика по "Очистить все фильтры"
+    const clearFiltersLink = document.querySelector('#changelist-filter-extra-actions a');
+    if (clearFiltersLink) {
+        clearFiltersLink.addEventListener('click', function(e) {
+            if (isGrouped) {
+                e.preventDefault();
+                const href = this.getAttribute('href');
+                if (href) {
+                    const separator = href.indexOf('?') === -1 ? '?' : '&';
+                    window.location.href = href + separator + 'grouped=1';
+                }
+            }
+        });
+    }
+});
+
+// Применение фильтров без пустых значений
+function applyFilters() {
+    const form = document.getElementById('changelist-search');
+    const formData = new FormData(form);
+    const params = new URLSearchParams();
+
+    // Добавляем только непустые параметры
+    for (const [key, value] of formData.entries()) {
+        if (value && value.trim() !== '') {
+            params.append(key, value);
+        }
+    }
+    
+    // Сохраняем состояние группировки в параметре
+    if (isGrouped) {
+        params.append('grouped', '1');
+    }
+
+    // Перенаправляем с отфильтрованными параметрами
+    window.location.search = params.toString();
+}
+
+// Очистка фильтров с сохранением группировки
+function clearFilters() {
+    const params = new URLSearchParams();
+    
+    // Сохраняем только параметр группировки
+    if (isGrouped) {
+        params.append('grouped', '1');
+    }
+    
+    const url = params.toString() ? '?' + params.toString() : '?';
+    window.location.search = url;
+}
+
+// Глобальная переменная для состояния группировки
+let isGrouped = false;
+
+// Сохранение состояния развернутых групп
+function saveGroupState() {
+    const expandedGroups = [];
+    document.querySelectorAll('.employee-group .group-header.expanded').forEach(function(header) {
+        const groupId = header.parentElement.dataset.assigneeId;
+        if (groupId) {
+            expandedGroups.push(groupId);
+        }
+    });
+    localStorage.setItem('dailyTaskExpandedGroups', JSON.stringify(expandedGroups));
+}
+
+// Восстановление состояния развернутых групп
+function restoreGroupState() {
+    const savedGroups = localStorage.getItem('dailyTaskExpandedGroups');
+    if (savedGroups) {
+        try {
+            const expandedGroups = JSON.parse(savedGroups);
+            expandedGroups.forEach(function(groupId) {
+                const group = document.querySelector(`.employee-group[data-assignee-id="${groupId}"]`);
+                if (group) {
+                    const header = group.querySelector('.group-header');
+                    const groupTasks = group.querySelector('.group-tasks');
+                    const toggleIcon = group.querySelector('.group-toggle-icon');
+                    
+                    groupTasks.classList.remove('collapsed');
+                    toggleIcon.textContent = '▼';
+                    header.classList.add('expanded');
+                }
+            });
+        } catch(e) {
+            console.error('Error restoring group state:', e);
+        }
+    }
+}
+
+// Переключение группировки по сотрудникам
+function toggleGrouping() {
+    isGrouped = !isGrouped;
+    const groupedContainer = document.getElementById('grouped-container');
+    const regularContainer = document.getElementById('task-cards-container');
+    const groupBtn = document.getElementById('group-toggle');
+    
+    if (isGrouped) {
+        groupedContainer.style.display = 'block';
+        regularContainer.style.display = 'none';
+        groupBtn.style.background = '#007bff';
+        renderGroupedTasks();
+        // Добавляем параметр grouped в URL без перезагрузки
+        addGroupedToUrl();
+    } else {
+        groupedContainer.style.display = 'none';
+        regularContainer.style.display = 'block';
+        groupBtn.style.background = '#28a745';
+        // Удаляем параметр grouped из URL
+        removeGroupedFromUrl();
+    }
+}
+
+// Добавление параметра grouped в URL
+function addGroupedToUrl() {
+    const url = new URL(window.location);
+    url.searchParams.set('grouped', '1');
+    window.history.replaceState({}, '', url);
+}
+
+// Удаление параметра grouped из URL
+function removeGroupedFromUrl() {
+    const url = new URL(window.location);
+    url.searchParams.delete('grouped');
+    window.history.replaceState({}, '', url);
+}
+
+// Рендеринг группированных задач
+function renderGroupedTasks() {
+    const cards = document.querySelectorAll('#task-cards-container .task-card');
+    const groups = {};
+    
+    // Группируем задачи по сотрудникам
+    cards.forEach(card => {
+        const assigneeName = card.querySelector('.task-assignee').textContent.trim();
+        const assigneeId = card.dataset.assignee;
+        
+        if (!groups[assigneeId]) {
+            groups[assigneeId] = {
+                name: assigneeName,
+                tasks: []
+            };
+        }
+        groups[assigneeId].tasks.push(card.cloneNode(true));
+    });
+    
+    // Создаём HTML для групп
+    const groupedContent = document.getElementById('grouped-tasks-content');
+    groupedContent.innerHTML = '';
+    
+    for (const [assigneeId, group] of Object.entries(groups)) {
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'employee-group';
+        groupDiv.dataset.assigneeId = assigneeId;
+        
+        // Заголовок группы
+        const groupHeader = document.createElement('div');
+        groupHeader.className = 'group-header';
+        groupHeader.innerHTML = `
+            <span class="group-toggle-icon">▶</span>
+            <span class="group-name">${group.name}</span>
+            <span class="group-count">(${group.tasks.length} задач)</span>
+        `;
+        groupHeader.onclick = function() { toggleGroup(this); };
+        
+        // Контейнер задач группы
+        const groupTasks = document.createElement('div');
+        groupTasks.className = 'group-tasks collapsed';
+        group.tasks.forEach(task => {
+            groupTasks.appendChild(task);
+        });
+        
+        groupDiv.appendChild(groupHeader);
+        groupDiv.appendChild(groupTasks);
+        groupedContent.appendChild(groupDiv);
+    }
+    
+    // Восстанавливаем состояние развернутых групп
+    restoreGroupState();
+}
+
+// Переключение отдельной группы
+function toggleGroup(header) {
+    const groupTasks = header.nextElementSibling;
+    const toggleIcon = header.querySelector('.group-toggle-icon');
+    
+    if (groupTasks.classList.contains('collapsed')) {
+        groupTasks.classList.remove('collapsed');
+        toggleIcon.textContent = '▼';
+        header.classList.add('expanded');
+    } else {
+        groupTasks.classList.add('collapsed');
+        toggleIcon.textContent = '▶';
+        header.classList.remove('expanded');
+    }
+    
+    // Сохраняем состояние
+    saveGroupState();
+}
+
+// Развернуть/свернуть все группы
+function toggleAllGroups() {
+    const groups = document.querySelectorAll('.employee-group');
+    const allCollapsed = Array.from(groups).every(group => 
+        group.querySelector('.group-tasks').classList.contains('collapsed')
+    );
+    
+    groups.forEach(group => {
+        const groupTasks = group.querySelector('.group-tasks');
+        const toggleIcon = group.querySelector('.group-toggle-icon');
+        const header = group.querySelector('.group-header');
+        
+        if (allCollapsed) {
+            groupTasks.classList.remove('collapsed');
+            toggleIcon.textContent = '▼';
+            header.classList.add('expanded');
+        } else {
+            groupTasks.classList.add('collapsed');
+            toggleIcon.textContent = '▶';
+            header.classList.remove('expanded');
+        }
+    });
+    
+    // Сохраняем состояние
+    saveGroupState();
+}
+</script>
+{% endblock %}

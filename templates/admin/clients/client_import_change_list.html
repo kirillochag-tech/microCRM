@@ -1,0 +1,18 @@
+{% extends "admin/change_list.html" %}
+{% load i18n static %}
+
+{% block object-tools %}
+<div style="margin-bottom: 10px;">
+    <form method="post" action="{% url 'admin:clients_import_preview' %}" enctype="multipart/form-data" style="display: inline;">
+        {% csrf_token %}
+        <input type="file" name="import_file" accept=".xlsx,.xls,.csv" required style="display: inline-block; width: auto;">
+        <button type="submit" class="button" style="padding: 10px 15px;">
+            📥 {% trans "Импорт из 1С (Excel)" %}
+        </button>
+    </form>
+    <p style="margin-top: 5px; font-size: 11px; color: #666;">
+        {% trans "Формат: столбцы 'name' (наименование), 'code_1c' (код 1С), 'address', 'trading_point_name', 'trading_point_address', 'stand_count'" %}
+    </p>
+</div>
+{{ block.super }}
+{% endblock %}

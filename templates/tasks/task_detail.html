@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% load i18n form_tags %}
+
+{% block content %}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>{% trans 'Детали задачи' %}: {{ task.title }}</h2>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">{{ task.title }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>{% trans 'Тип задачи:' %}</strong> {{ task.get_task_type_display }}</p>
+                            <p><strong>{% trans 'Статус:' %}</strong> {{ task.get_status_display }}</p>
+                            <p><strong>{% trans 'Активная:' %}</strong> {% if task.is_active %}{% trans 'Да' %}{% else %}{% trans 'Нет' %}{% endif %}</p>
+                            {% if task.client %}
+                                <!-- Старый способ: прямое назначение -->
+                                <p><strong>{% trans 'Клиент:' %}</strong> {{ task.client.name }}</p>
+                                {% if task.client.address %}
+                                    <p><strong>{% trans 'Адрес:' %}</strong> {{ task.client.address }}</p>
+                                {% endif %}
+                            {% elif display_client %}
+                                <!-- Клиент из назначения (один) -->
+                                <p><strong>{% trans 'Клиент:' %}</strong> {{ display_client.name }}</p>
+                                {% if display_client.address %}
+                                    <p><strong>{% trans 'Адрес:' %}</strong> {{ display_client.address }}</p>
+                                {% endif %}
+                            {% elif task.taskclientassignment_set.exists %}
+                                <!-- Много клиентов -->
+                                {% with assigned_clients=task.taskclientassignment_set.all|dictsort:"client.name" %}
+                                    {% if assigned_clients|length > 1 and assigned_clients|length < 1000 %}
+                                        <div class="mt-3">
+                                            <strong>{% trans 'Клиенты задачи:' %}</strong>
+                                            <details>
+                                                <summary>{% trans 'Показать список клиентов' %} ({{ assigned_clients|length }})</summary>
+                                                <div style="max-height: 200px; overflow-y: auto; border: 1px solid #dee2e6; padding: 10px; margin-top: 5px;">
+                                                    <ul class="list-unstyled mb-0">
+                                                        {% for assignment in assigned_clients %}
+                                                            <li class="{% if assignment.client.id in submitted_client_ids %}client-submitted{% endif %}">
+                                                                {{ assignment.client.name }}
+                                                                {% if assignment.client.id in submitted_client_ids %}
+                                                                    <span class="badge bg-success">Отправлен</span>
+                                                                {% endif %}
+                                                            </li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                </div>
+                                            </details>
+                                        </div>
+                                    {% elif assigned_clients|length >= 1000 %}
+                                        <p><strong>{% trans 'Клиенты задачи:' %}</strong> {% trans 'Все клиенты' %}</p>
+                                    {% endif %}
+                                {% endwith %}
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>{% trans 'Создано:' %}</strong> {{ task.created_at|date:"d.m.Y H:i" }}</p>
+                            {% if task.created_by %}
+                                <p><strong>{% trans 'Создал:' %}</strong> {{ task.created_by.username }}</p>
+                            {% endif %}
+                            {% if task.assigned_to %}
+                                <p><strong>{% trans 'Назначено:' %}</strong> {{ task.assigned_to.username }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Для анкет и фотоотчётов показываем план и выполнение -->
+                    {% if task.task_type == 'SURVEY' %}
+                        <div class="mt-3">
+                            <h6>{% trans 'План выполнения' %}</h6>
+                            <div class="progress mb-2">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ task.get_completion_percentage }}%" aria-valuenow="{{ task.get_completion_percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <p>{% trans 'Цель:' %} {{ task.target_count }} | {% trans 'Выполнено:' %} {{ task.current_count }} | {% trans 'Процент:' %} {{ task.get_completion_percentage }}%</p>
+                        </div>
+                    {% elif task.task_type == 'EQUIPMENT_PHOTO' or task.task_type == 'SIMPLE_PHOTO' %}
+                        {% if total_clients and total_clients > 0 %}
+                            <div class="mt-3">
+                                <h6>{% trans 'План выполнения' %}</h6>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar bg-info" role="progressbar" style="width: {{ completion_percentage }}%" aria-valuenow="{{ completion_percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <p>{% trans 'Цель:' %} {{ total_clients }} | {% trans 'Выполнено:' %} {{ submitted_clients }} | {% trans 'Процент:' %} {{ completion_percentage }}%</p>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                    
+                    {% if task.description %}
+                        <div class="mt-3">
+                            <strong>{% trans 'Описание:' %}</strong>
+                            <p>{{ task.description }}</p>
+                        </div>
+                    {% endif %}
+                    
+                    {% if task.moderator_comment %}
+                        <div class="mt-3 alert alert-warning">
+                            <strong>{% trans 'Комментарий модератора:' %}</strong>
+                            <p>{{ task.moderator_comment }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Действия -->
+            <div class="mb-4">
+                {% if user.role == 'EMPLOYEE' %}
+                    {% if task.task_type == 'SURVEY' %}
+                        {% if task.status != 'COMPLETED' and task.is_active %}
+                            {% if task.target_count == 0 or task.current_count < task.target_count %}
+                                <a href="{% url 'tasks:survey_response' task.pk %}" class="btn btn-success me-2">{% trans 'Заполнить анкету' %}</a>
+                            {% else %}
+                                <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Цель достигнута' %}</button>
+                            {% endif %}
+                        {% elif task.status == 'COMPLETED' %}
+                            <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Завершена' %}</button>
+                        {% elif not task.is_active %}
+                            <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Неактивна' %}</button>
+                        {% else %}
+                            <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Недоступна' %}</button>
+                        {% endif %}
+                    {% elif task.task_type == 'EQUIPMENT_PHOTO' or task.task_type == 'SIMPLE_PHOTO' %}
+                        {% if task.status != 'COMPLETED' %}
+                            <a href="{% url 'tasks:photo_report' task.pk %}" class="btn btn-success me-2">{% trans 'Заполнить' %}</a>
+                        {% else %}
+                            <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Завершено' %}</button>
+                        {% endif %}
+                    {% else %}
+                        {% if task.status != 'COMPLETED' %}
+                            <!-- Форма для выполнения задачи -->
+                            <form method="post" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-success me-2">{% trans 'Выполнить задачу' %}</button>
+                            </form>
+                        {% else %}
+                            <button type="button" class="btn btn-secondary me-2" disabled>{% trans 'Завершено' %}</button>
+                        {% endif %}
+                    {% endif %}
+                {% endif %}
+                
+                {% if user.role == 'MODERATOR' %}
+                    <a href="#" class="btn btn-primary me-2">{% trans 'Редактировать' %}</a>
+                    <a href="#" class="btn btn-danger">{% trans 'Удалить' %}</a>
+                {% endif %}
+            </div>
+            
+            <!-- Возвращение на список задач -->
+            <a href="{% url 'tasks:task_list' %}" class="btn btn-secondary">{% trans 'Назад к списку задач' %}</a>
+            <a href="{% url 'home' %}" class="btn btn-outline-secondary">{% trans 'На главную' %}</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

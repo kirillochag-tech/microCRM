@@ -1,0 +1,230 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .import-preview-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+    }
+    .import-preview-table th,
+    .import-preview-table td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+    }
+    .import-preview-table th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+    }
+    .import-preview-table tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    .import-section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+    .import-section h3 {
+        margin-top: 0;
+        color: #333;
+    }
+    .update-by-code {
+        background-color: #e8f5e9;
+    }
+    .update-by-name {
+        background-color: #e3f2fd;
+    }
+    .skipped {
+        background-color: #fff3e0;
+    }
+    .duplicate {
+        background-color: #ffebee;
+    }
+    .change-indicator {
+        color: #f57c00;
+        font-weight: bold;
+    }
+    .btn-import {
+        background-color: #4CAF50;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+    .btn-import:hover {
+        background-color: #45a049;
+    }
+    .btn-cancel {
+        background-color: #f44336;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        margin-left: 10px;
+    }
+    .btn-cancel:hover {
+        background-color: #da190b;
+    }
+    .summary-box {
+        background-color: #e7f3ff;
+        border-left: 4px solid #2196F3;
+        padding: 15px;
+        margin: 20px 0;
+    }
+    .warning-box {
+        background-color: #fff3e0;
+        border-left: 4px solid #ff9800;
+        padding: 15px;
+        margin: 20px 0;
+    }
+    .error-box {
+        background-color: #ffebee;
+        border-left: 4px solid #f44336;
+        padding: 15px;
+        margin: 20px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>{% trans "Предварительный просмотр импорта клиентов" %}</h1>
+
+<div class="summary-box">
+    <h2>{% trans "Результаты анализа файла" %}</h2>
+    <p>
+        <strong>{% trans "Обновлено клиентов:" %}</strong> {{ updated_clients|length }}<br>
+        <strong>{% trans "Пропущено (нет совпадений):" %}</strong> {{ skipped_clients|length }}<br>
+        <strong>{% trans "Найдено дублей:" %}</strong> {{ duplicates|length }}
+    </p>
+</div>
+
+{% if duplicates %}
+<div class="error-box">
+    <h3>⚠️ {% trans "Обнаружены дубликаты" %}</h3>
+    <p>{% trans "Следующие клиенты дублируются в базе данных:" %}</p>
+    <table class="import-preview-table">
+        <thead>
+            <tr>
+                <th>{% trans "Строка" %}</th>
+                <th>{% trans "Наименование" %}</th>
+                <th>{% trans "Код 1С" %}</th>
+                <th>{% trans "Дубли в базе" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dup in duplicates %}
+            <tr class="duplicate">
+                <td>{{ dup.row }}</td>
+                <td>{{ dup.name }}</td>
+                <td>{{ dup.code_1c }}</td>
+                <td>{{ dup.existing_clients }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if updated_clients %}
+<div class="import-section">
+    <h3>✅ {% trans "Клиенты для обновления" %}</h3>
+    <table class="import-preview-table">
+        <thead>
+            <tr>
+                <th>{% trans "Строка" %}</th>
+                <th>{% trans "Тип" %}</th>
+                <th>{% trans "Наименование" %}</th>
+                <th>{% trans "Код 1С" %}</th>
+                <th>{% trans "Изменения" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for client in updated_clients %}
+            <tr class="{% if client.type == 'update_by_code' %}update-by-code{% else %}update-by-name{% endif %}">
+                <td>{{ client.row }}</td>
+                <td>
+                    {% if client.type == 'update_by_code' %}
+                        {% trans "По коду 1С" %}
+                    {% else %}
+                        {% trans "По наименованию" %}
+                    {% endif %}
+                </td>
+                <td>{{ client.name }}</td>
+                <td>{{ client.code_1c|default:"—" }}</td>
+                <td>
+                    {% if client.changes %}
+                        {% for field, change in client.changes.items %}
+                            <div class="change-indicator">
+                                {{ field }}: {{ change.old }} → {{ change.new }}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        {% trans "Без изменений" %}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if skipped_clients %}
+<div class="import-section">
+    <h3>⏭️ {% trans "Пропущенные клиенты (нет совпадений)" %}</h3>
+    <p>{% trans "Эти клиенты не будут импортированы, так как не найдено совпадений ни по коду 1С, ни по наименованию:" %}</p>
+    <table class="import-preview-table">
+        <thead>
+            <tr>
+                <th>{% trans "Строка" %}</th>
+                <th>{% trans "Наименование" %}</th>
+                <th>{% trans "Код 1С" %}</th>
+                <th>{% trans "Причина" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for client in skipped_clients %}
+            <tr class="skipped">
+                <td>{{ client.row }}</td>
+                <td>{{ client.name|default:"—" }}</td>
+                <td>{{ client.code_1c|default:"—" }}</td>
+                <td>{{ client.reason }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if not updated_clients and not skipped_clients and not duplicates %}
+<div class="warning-box">
+    <h3>ℹ️ {% trans "Нет данных для импорта" %}</h3>
+    <p>{% trans "Файл не содержит данных для импорта или все клиенты уже существуют в базе без изменений." %}</p>
+</div>
+{% endif %}
+
+<div style="margin-top: 30px;">
+    <form method="post" action="{% url 'admin:clients_import_confirm' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-import">
+            ✅ {% trans "Подтвердить импорт" %}
+        </button>
+        <a href="{% url 'admin:clients_client_changelist' %}" class="btn-cancel">
+            ❌ {% trans "Отмена" %}
+        </a>
+    </form>
+</div>
+
+<p style="margin-top: 20px; color: #666; font-size: 12px;">
+    {% trans "Примечание: Задачи, закрепленные за клиентами, не будут потеряны при обновлении." %}
+</p>
+
+{% endblock %}

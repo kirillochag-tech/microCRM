@@ -1,0 +1,11 @@
+/* Стиль для клиента с отправленным отчётом */
+.client-submitted {
+    background-color: #e9ecef !important; /* Светло-серый фон */
+    color: #6c757d !important; /* Серый текст */
+    text-decoration: line-through; /* Зачеркнутый текст (опционально) */
+}
+
+/* Стиль для чекбокса у такого клиента */
+.client-submitted input[type="checkbox"] {
+    opacity: 0.5;
+}

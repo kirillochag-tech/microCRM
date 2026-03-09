@@ -1,0 +1,337 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    /* Autocomplete styles */
+    .autocomplete-container {
+        position: relative;
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .client-search-wrapper {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .client-search-wrapper input[type="text"] {
+        flex: 1;
+    }
+
+    .client-search-wrapper .button {
+        white-space: nowrap;
+    }
+
+    .selected-client-info {
+        margin-top: 8px;
+        padding: 8px;
+        background: #e8f5e8;
+        border: 1px solid #28a745;
+        border-radius: 4px;
+        display: none;
+    }
+
+    .selected-client-info .client-name-display {
+        font-weight: bold;
+        color: #28a745;
+    }
+
+    /* Hide the original client field */
+    .field-client {
+        display: none;
+    }
+
+    /* Client search fieldset styling */
+    .client-search-fieldset {
+        border: none !important;
+        padding: 0;
+        margin: 0;
+        background: none !important;
+        overflow: visible !important;
+    }
+
+    .client-search-fieldset .form-row {
+        padding: 8px 0;
+        overflow: visible !important;
+    }
+    
+    /* Dropdown appended to body */
+    #client-autocomplete-list-body {
+        position: absolute;
+        z-index: 9999;
+        max-height: 200px;
+        overflow-y: auto;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        display: none;
+        min-width: 300px;
+    }
+    
+    #client-autocomplete-list-body .autocomplete-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+    }
+
+    #client-autocomplete-list-body .autocomplete-item:hover,
+    #client-autocomplete-list-body .autocomplete-item.active {
+        background: #f0f0f0;
+    }
+
+    #client-autocomplete-list-body .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+
+    #client-autocomplete-list-body .autocomplete-item .client-name {
+        font-weight: bold;
+        color: #333;
+    }
+
+    #client-autocomplete-list-body .autocomplete-item .client-address {
+        font-size: 12px;
+        color: #666;
+        margin-top: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block after_field_sets %}
+{{ block.super }}
+
+{# Client search field - will be moved after date field by JavaScript #}
+<fieldset class="module aligned client-search-fieldset" id="client-search-fieldset">
+    <div class="form-row">
+        <div>
+            <label for="client-search-input">Клиент:</label>
+            <div class="autocomplete-container">
+                <div class="client-search-wrapper">
+                    <input type="text" id="client-search-input" placeholder="Введите название клиента..." autocomplete="off">
+                    <button type="button" class="button" onclick="clearClientSelection()">Очистить</button>
+                </div>
+                <input type="hidden" id="id_client_id" name="client_id" value="{{ original.client_id|default:'' }}">
+            </div>
+            <div id="selected-client-info" class="selected-client-info">
+                Выбран клиент: <span id="selected-client-name" class="client-name-display"></span>
+            </div>
+        </div>
+    </div>
+</fieldset>
+
+{# Dropdown list will be appended to body #}
+<div id="client-autocomplete-list-body"></div>
+
+<script>
+(function() {
+    'use strict';
+
+    let autocompleteItems = [];
+    let activeIndex = -1;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const clientSearchInput = document.getElementById('client-search-input');
+        const clientSelectInput = document.getElementById('id_client_id');
+        const autocompleteList = document.getElementById('client-autocomplete-list-body');
+        const selectedClientInfo = document.getElementById('selected-client-info');
+        const clientNameDisplay = document.getElementById('selected-client-name');
+        const clientSearchFieldset = document.getElementById('client-search-fieldset');
+
+        if (!clientSearchInput || !clientSelectInput || !autocompleteList) {
+            console.error('Required elements not found!');
+            console.log('clientSearchInput:', clientSearchInput);
+            console.log('clientSelectInput:', clientSelectInput);
+            console.log('autocompleteList:', autocompleteList);
+            return;
+        }
+
+        // Move client search field after the date row
+        const dateField = document.querySelector('input[name="date"]');
+        console.log('Date field found:', dateField);
+        if (dateField) {
+            const dateRow = dateField.closest('.form-row');
+            console.log('Date row found:', dateRow);
+            if (dateRow) {
+                // Insert after the date row
+                dateRow.parentNode.insertBefore(clientSearchFieldset, dateRow.nextSibling);
+                console.log('Client search field moved after date row');
+            }
+        }
+
+        // Initialize with existing client if editing
+        const initialClientId = clientSelectInput.value;
+        if (initialClientId) {
+            fetch(`/clients/autocomplete/?q=`)
+                .then(() => {
+                    clientNameDisplay.textContent = 'Клиент выбран (ID: ' + initialClientId + ')';
+                    selectedClientInfo.style.display = 'block';
+                    clientSearchInput.value = 'Клиент #' + initialClientId;
+                })
+                .catch(() => {
+                    clientNameDisplay.textContent = 'Клиент выбран (ID: ' + initialClientId + ')';
+                    selectedClientInfo.style.display = 'block';
+                });
+        }
+
+        // Search input handler
+        clientSearchInput.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.trim();
+            activeIndex = -1;
+
+            console.log('Search term:', searchTerm);
+
+            if (searchTerm.length < 2 || searchTerm.startsWith('Клиент #')) {
+                autocompleteList.style.display = 'none';
+                return;
+            }
+
+            const url = `/clients/autocomplete/?q=${encodeURIComponent(searchTerm)}`;
+            console.log('Fetching URL:', url);
+
+            fetch(url, {
+                credentials: 'same-origin'
+            })
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Received data:', data);
+                    autocompleteItems = data || [];
+                    
+                    if (autocompleteItems.length === 0) {
+                        autocompleteList.style.display = 'none';
+                        console.log('No items, hiding list');
+                        return;
+                    }
+
+                    autocompleteList.innerHTML = '';
+                    console.log('Showing autocomplete list, items count:', autocompleteItems.length);
+
+                    autocompleteItems.forEach((client, index) => {
+                        const item = document.createElement('div');
+                        item.classList.add('autocomplete-item');
+                        item.dataset.index = index;
+                        item.dataset.clientId = client.id;
+                        
+                        item.innerHTML = `
+                            <div class="client-name">${escapeHtml(client.name)}</div>
+                            ${client.address ? `<div class="client-address">${escapeHtml(client.address)}</div>` : ''}
+                        `;
+
+                        item.addEventListener('click', function() {
+                            selectClient(client);
+                        });
+
+                        autocompleteList.appendChild(item);
+                    });
+                    
+                    // Position the dropdown
+                    const rect = clientSearchInput.getBoundingClientRect();
+                    autocompleteList.style.top = (window.scrollY + rect.bottom) + 'px';
+                    autocompleteList.style.left = (window.scrollX + rect.left) + 'px';
+                    autocompleteList.style.width = rect.width + 'px';
+                    autocompleteList.style.display = 'block';
+                    
+                    console.log('Dropdown positioned at:', {
+                        top: autocompleteList.style.top,
+                        left: autocompleteList.style.left,
+                        width: autocompleteList.style.width
+                    });
+                    console.log('Autocomplete list children:', autocompleteList.children.length);
+                    console.log('Autocomplete list display:', autocompleteList.style.display);
+                })
+                .catch(error => {
+                    console.error('Error fetching client suggestions:', error);
+                });
+        });
+
+        // Keyboard navigation
+        clientSearchInput.addEventListener('keydown', function(e) {
+            const items = autocompleteList.querySelectorAll('.autocomplete-item');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (activeIndex < items.length - 1) {
+                    activeIndex++;
+                    updateActiveItem(items);
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (activeIndex > 0) {
+                    activeIndex--;
+                    updateActiveItem(items);
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (activeIndex >= 0 && autocompleteItems[activeIndex]) {
+                    selectClient(autocompleteItems[activeIndex]);
+                }
+            } else if (e.key === 'Escape') {
+                autocompleteList.style.display = 'none';
+            }
+        });
+
+        // Hide autocomplete when clicking outside
+        document.addEventListener('click', function(e) {
+            if (e.target !== clientSearchInput && !e.target.closest('.autocomplete-container')) {
+                autocompleteList.style.display = 'none';
+            }
+        });
+
+        // Focus handler
+        clientSearchInput.addEventListener('focus', function() {
+            if (clientSearchInput.value.trim().length >= 2 && !clientSearchInput.value.startsWith('Клиент #')) {
+                clientSearchInput.dispatchEvent(new Event('input'));
+            }
+        });
+
+        function selectClient(client) {
+            clientSelectInput.value = client.id;
+            clientSearchInput.value = client.name;
+            autocompleteList.style.display = 'none';
+            
+            clientNameDisplay.textContent = client.name;
+            selectedClientInfo.style.display = 'block';
+        }
+
+        function updateActiveItem(items) {
+            items.forEach((item, index) => {
+                if (index === activeIndex) {
+                    item.classList.add('active');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Clear button handler
+        window.clearClientSelection = function() {
+            document.getElementById('id_client_id').value = '';
+            clientSearchInput.value = '';
+            selectedClientInfo.style.display = 'none';
+            autocompleteList.style.display = 'none';
+        };
+        
+        // Reposition dropdown on scroll
+        window.addEventListener('scroll', function() {
+            if (autocompleteList.style.display === 'block') {
+                const rect = clientSearchInput.getBoundingClientRect();
+                autocompleteList.style.top = (window.scrollY + rect.bottom) + 'px';
+                autocompleteList.style.left = (window.scrollX + rect.left) + 'px';
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}

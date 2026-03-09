@@ -1,0 +1,379 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" type="text/css" href="{% static 'tasks/admin/survey_admin.css' %}">
+    <style>
+        /* Стиль для disabled поля */
+        input[disabled] {
+            background-color: #e9ecef !important;
+            color: #6c757d !important;
+            cursor: not-allowed;
+        }
+        /* Стиль для активного поля */
+        input.editable-field {
+            background-color: white !important;
+            color: #212529 !important;
+            cursor: text;
+        }
+    </style>
+{% endblock %}
+
+
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h2>{% trans 'Заполнение фотоотчета' %}</h2>
+            <p><strong>{{ task.title }}</strong></p>
+            <p>{{ task.description|default:"" }}</p>
+            
+            <form id="photo-report-form" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                {% if form.client_name %}
+                <div class="form-group mb-3">
+                    <label for="{{ form.client_name.id_for_label }}">{% trans 'Название торговой точки' %}</label>
+                    {{ form.client_name }}
+                    {{ form.client_id }}
+                </div>
+                {% elif task.client %}
+                <!-- Старый способ: прямое назначение -->
+                <div class="form-group mb-3">
+                    <label for="id_client_display">{% trans 'Клиент' %}</label>
+                    <input type="text" 
+                           id="id_client_display" 
+                           class="form-control" 
+                           value="{{ task.client.name }}" 
+                           readonly>
+                    <input type="hidden" name="client_id" value="{{ task.client.id }}">
+                </div>
+                {% elif display_client %}
+                <!-- Новый способ: один клиент через назначение -->
+                <div class="form-group mb-3">
+                    <label for="id_client_display">{% trans 'Клиент' %}</label>
+                    <input type="text" 
+                           id="id_client_display" 
+                           class="form-control" 
+                           value="{{ display_client.name }}" 
+                           readonly>
+                    <input type="hidden" name="client_id" value="{{ display_client.id }}">
+                </div>
+                {% elif task.taskclientassignment_set.exists %}
+                <!-- Много клиентов -->
+                <div class="form-group mb-3">
+                    <label for="id_client" class="form-label">{% trans 'Клиент' %} *</label>
+                    <select name="client_id" id="id_client" class="form-control" required>
+                        <option value="">--- {% trans 'Выберите клиента' %} ---</option>
+                        {% for assignment in task.taskclientassignment_set.all|dictsort:"client.name" %}
+                            <option value="{{ assignment.client.id }}">
+                                {% if assignment.client.id in submitted_client_ids %}
+                                    ✓ {{ assignment.client.name }} ({% trans 'Отправлен' %})
+                                {% else %}
+                                    {{ assignment.client.name }}
+                                {% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% else %}
+                <!-- Fallback to autocomplete search for all clients -->
+                <div class="form-group mb-3">
+                    <label for="id_client" class="form-label">{% trans 'Клиент' %} *</label>
+                    <div id="client-input-container">
+                        <input type="text" name="client_name" id="id_client" class="form-control" required placeholder="{% trans 'Начните вводить название клиента...' %}">
+                        <div id="client-list"></div>
+                    </div>
+                    <input type="hidden" name="client_id" id="selected_client_id">
+                </div>
+                {% endif %}
+                
+                <div class="form-group mb-3">
+                    <label for="{{ form.address.id_for_label }}">{% trans 'Адрес' %} *</label>
+                    {{ form.address }}
+                    {% if form.address.errors %}
+                        <div class="text-danger">{{ form.address.errors }}</div>
+                    {% endif %}
+                    <small class="form-text text-muted">{% trans 'Укажите адрес, где производится фотоотчет' %}</small>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="{{ form.stand_count.id_for_label }}">{% trans 'Количество стендов' %}</label>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        {{ form.stand_count }}
+                        <button type="button" id="edit-stand-count-btn" class="btn btn-sm btn-secondary">...</button>
+                    </div>
+                    {% if form.stand_count.errors %}
+                        <div class="text-danger">{{ form.stand_count.errors }}</div>
+                    {% endif %}
+                </div>
+                
+
+                
+                <div class="form-group mb-3">
+                    <label for="{{ form.comment.id_for_label }}">{% trans 'Комментарий' %}</label>
+                    {{ form.comment }}
+                    {% if form.comment.errors %}
+                        <div class="text-danger">{{ form.comment.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="{{ form.photos.id_for_label }}">{% trans 'Фото' %} *</label>
+                    <div class="photo-upload-container">
+                        <div id="photo-preview-container-{{ form.photos.name }}" class="photo-preview-container"></div>
+                        <!-- Основной инпут для отправки формы -->
+                        <input type="file" 
+                               name="{{ form.photos.name }}" 
+                               id="photo-upload-input" 
+                               accept="image/*" 
+                               multiple 
+                               style="display: none;">
+                        <!-- Кнопка для триггера выбора файлов -->
+                        <button type="button" 
+                                class="btn btn-secondary add-photo-btn"
+                                onclick="document.getElementById('photo-upload-input').click()">
+                            📷 Добавить фото
+                        </button>
+                        <small class="form-text text-muted">Можно добавить несколько фото.</small>
+                    </div>
+                    {% if form.photos.errors %}
+                        <div class="text-danger">{{ form.photos.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                {% endif %}
+                
+                <button type="submit" class="btn btn-success">{% trans 'Отправить фотоотчет' %}</button>
+                <a href="{% url 'tasks:task_list' %}" class="btn btn-secondary">{% trans 'Отмена' %}</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% if not task.taskclientassignment_set.exists and not task.client %}
+    <script src="{% static 'js/client_search.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/client_search.css' %}">
+{% endif %}
+
+<style>
+.photo-preview-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 10px 0;
+}
+.photo-preview-item {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.photo-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.photo-preview-item button {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: red;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    font-size: 12px;
+}
+.file-name {
+    display: block;
+    font-size: 10px;
+    text-align: center;
+    padding: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.add-photo-btn {
+    margin-top: 10px;
+}
+</style>
+
+<script>
+// Флаг для предотвращения повторной отправки
+let isFormSubmitting = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('photo-report-form');
+    if (!form) {
+        console.error('Photo report form not found!');
+        return;
+    }
+
+    const editBtn = document.getElementById('edit-stand-count-btn');
+    const standCountInput = document.getElementById('id_stand_count');
+    
+    if (!editBtn || !standCountInput) return;
+    
+    // Функция для обновления состояния кнопки
+    function updateButtonState() {
+        if (standCountInput.hasAttribute('disabled')) {
+            editBtn.textContent = '...';
+            editBtn.classList.remove('btn-success');
+            editBtn.classList.add('btn-secondary');
+        } else {
+            editBtn.textContent = 'Сохранить';
+            editBtn.classList.remove('btn-secondary');
+            editBtn.classList.add('btn-success');
+        }
+    }
+    
+    // Инициализация состояния кнопки
+    updateButtonState();
+    
+    // Обработчик нажатия на кнопку
+    editBtn.addEventListener('click', function() {
+        if (standCountInput.hasAttribute('disabled')) {
+            // Активируем поле
+            standCountInput.removeAttribute('disabled');
+            standCountInput.classList.add('editable-field');
+            updateButtonState();
+            
+            // Устанавливаем фокус и выделяем текст
+            standCountInput.focus();
+            standCountInput.select();
+        } else {
+            // Сохраняем значение и деактивируем поле
+            let value = standCountInput.value.trim();
+            
+            // Удаляем ведущий ноль, если он есть и число не "0"
+            if (value.length > 1 && value.startsWith('0')) {
+                value = value.replace(/^0+/, '');
+                // Если после удаления нулей строка пустая, делаем "0"
+                if (value === '') value = '0';
+            }
+            
+            standCountInput.value = value;
+            standCountInput.setAttribute('disabled', 'disabled');
+            standCountInput.classList.remove('editable-field');
+            updateButtonState();
+        }
+    });
+
+    // Глобальный объект для хранения выбранных файлов
+    window.selectedFiles = {};
+
+    // Привязываем обработчик к инпуту фото
+    const photoUploadInput = document.getElementById('photo-upload-input');
+    if (photoUploadInput) {
+        photoUploadInput.addEventListener('change', function(event) {
+            handleFileSelect(event, 'photos');
+        });
+    }
+
+    // Обработчик отправки формы
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Защита от повторной отправки
+        if (isFormSubmitting) {
+            console.log('Form submission already in progress, ignoring.');
+            return;
+        }
+        isFormSubmitting = true;
+
+        // Показываем индикатор загрузки
+        const submitBtn = this.querySelector('button[type="submit"]');
+        if (!submitBtn) {
+            console.error('Submit button not found!');
+            isFormSubmitting = false;
+            return;
+        }
+        const originalText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Обработка...';
+        console.log('Form submission started.');
+
+        // Делаем все disabled поля активными перед отправкой
+        const disabledFields = this.querySelectorAll('input[disabled]');
+        disabledFields.forEach(field => {
+            field.removeAttribute('disabled');
+        });
+
+        const formData = new FormData(this);
+
+        // Добавляем файлы
+        const selectedFiles = window.selectedFiles['photos'] || [];
+        for (let file of selectedFiles) {
+            formData.append('photos', file);
+        }
+
+        fetch(this.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (response.ok) {
+                submitBtn.textContent = 'Успешно!';
+                setTimeout(() => {
+                    window.location.href = '/tasks/list/';
+                }, 500);
+            } else {
+                return response.text().then(text => {
+                    throw new Error(`HTTP ${response.status}`);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error during form submission:', error);
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+            alert('Произошла ошибка при отправке формы.');
+            isFormSubmitting = false; // Сбрасываем флаг при ошибке
+        });
+    });
+});
+
+// Определяем функции handleFileSelect, removeFile, renderPreviews внутри DOMContentLoaded
+function handleFileSelect(event, fieldName) {
+    const newFiles = Array.from(event.target.files);
+    const container = document.getElementById(`photo-preview-container-${fieldName}`);
+    
+    if (!window.selectedFiles[fieldName]) {
+        window.selectedFiles[fieldName] = [];
+    }
+    window.selectedFiles[fieldName] = [...window.selectedFiles[fieldName], ...newFiles];
+    renderPreviews(fieldName);
+    event.target.value = '';
+}
+
+function removeFile(fieldName, index) {
+    window.selectedFiles[fieldName].splice(index, 1);
+    renderPreviews(fieldName);
+}
+
+function renderPreviews(fieldName) {
+    const container = document.getElementById(`photo-preview-container-${fieldName}`);
+    container.innerHTML = '';
+    const files = window.selectedFiles[fieldName] || [];
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const preview = document.createElement('div');
+        preview.className = 'photo-preview-item';
+        preview.innerHTML = `
+            <img src="${URL.createObjectURL(file)}" alt="Preview">
+            <span class="file-name">${file.name}</span>
+            <button type="button" onclick="removeFile('${fieldName}', ${i})">✕</button>
+        `;
+        container.appendChild(preview);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,15 @@
+/* Увеличение ширины поля поиска в модальных окнах raw_id */
+.select-filter select {
+    min-width: 20ch !important;
+    width: auto !important;
+}
+
+/* Увеличение ширины строки поиска */
+#changelist-search input[type="text"] {
+    min-width: 20ch !important;
+}
+
+/* Увеличение ширины поля ввода в модальном окне */
+.field-search input[type="text"] {
+    min-width: 20ch !important;
+}

@@ -1,0 +1,99 @@
+{% load i18n %}
+
+<!-- Task list -->
+<div class="task-list" id="task-list">
+    {% for task in daily_tasks %}
+        <div class="task-item {% if task.status == 'completed' %}completed{% elif task.status == 'hidden' %}hidden{% endif %}"
+             data-task-id="{{ task.id }}"
+             data-status="{{ task.status }}">
+            <div class="drag-handle">☰</div>
+            <div class="task-header">
+                <div class="task-title">
+                    <span id="client-name-{{ task.id }}" class="client-name-clickable" onclick="toggleTaskDetails({{ task.id }})">{{ task.client.name|truncatechars:30 }}</span>
+                    <div id="client-input-container-{{ task.id }}">
+                        <select id="edit-client-{{ task.id }}" class="edit-field-input mt-2" style="display: none;">
+                            <option value="{{ task.client.id }}" selected>{{ task.client.name }}</option>
+                        </select>
+                        <div id="client-list-edit-{{ task.id }}" class="client-list" style="display: none;"></div>
+                    </div>
+                    <input type="hidden" id="edit-client-id-{{ task.id }}" name="client_id" value="{{ task.client.id }}">
+                    <span class="task-priority priority-{{ task.priority }}">{% trans 'Приоритет' %}: {{ task.priority }}</span>
+                </div>
+                <div class="task-date" id="task-date-{{ task.id }}">{{ task.date|date:"d.m.Y" }}</div>
+            </div>
+
+            <div class="task-details" id="task-details-{{ task.id }}" style="display: none;">
+                <div class="edit-fields-container">
+                    <div class="edit-field-row">
+                        <div class="edit-field-col">
+                            <label class="edit-field-label">{% trans 'Исполнитель' %}:</label>
+                            <span id="assignee-{{ task.id }}">{{ task.assignee.get_full_name|default:task.assignee.username }}</span>
+                            <select id="edit-assignee-{{ task.id }}" class="edit-field-input" style="display: none;">
+                                {% for employee in employees %}
+                                    <option value="{{ employee.id }}" {% if employee.id == task.assignee.id %}selected{% endif %}>
+                                        {{ employee.get_full_name|default:employee.username }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="edit-field-col">
+                            <label class="edit-field-label">{% trans 'Дата' %}:</label>
+                            <span id="task-date-display-{{ task.id }}">{{ task.date|date:"d.m.Y" }}</span>
+                            <input type="date" id="task-date-edit-{{ task.id }}" class="edit-field-input" style="display: none;" value="{{ task.date|date:"Y-m-d" }}">
+                        </div>
+                        <div class="edit-field-col">
+                            <label class="edit-field-label">{% trans 'Приоритет' %}:</label>
+                            <span class="task-priority priority-{{ task.priority }}">{% trans 'Приоритет' %}: {{ task.priority }}</span>
+                            <select id="edit-priority-{{ task.id }}" class="edit-field-input" style="display: none;">
+                                <option value="1" {% if task.priority == 1 %}selected{% endif %}>{% trans 'Очень высокий' %}</option>
+                                <option value="2" {% if task.priority == 2 %}selected{% endif %}>{% trans 'Высокий' %}</option>
+                                <option value="3" {% if task.priority == 3 %}selected{% endif %}>{% trans 'Средний' %}</option>
+                                <option value="4" {% if task.priority == 4 %}selected{% endif %}>{% trans 'Низкий' %}</option>
+                                <option value="5" {% if task.priority == 5 %}selected{% endif %}>{% trans 'Очень низкий' %}</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="task-description">
+                    <strong>{% trans 'Описание:' %}</strong>
+                    <div id="desc-{{ task.id }}">{{ task.description }}</div>
+                    <textarea id="edit-desc-{{ task.id }}" class="edit-field-input mt-2" style="display: none;">{{ task.description }}</textarea>
+                </div>
+
+                <div class="task-result">
+                    <strong>{% trans 'Результат:' %}</strong>
+                    <div id="result-{{ task.id }}">{{ task.result|default:"Не указан" }}</div>
+                    <textarea id="edit-result-{{ task.id }}" class="edit-field-input mt-2" style="display: none;">{{ task.result|default:"" }}</textarea>
+                </div>
+
+                <div class="task-actions">
+                    <button class="action-btn btn-primary edit-btn" data-task-id="{{ task.id }}">{% trans 'Редактировать' %}</button>
+                    <button class="action-btn btn-success save-btn" data-task-id="{{ task.id }}" style="display: none;">{% trans 'Сохранить' %}</button>
+                    <button class="action-btn btn-success complete-btn" data-task-id="{{ task.id }}">
+                        {% if task.status == 'completed' %}{% trans 'Отметить как активную' %}{% else %}{% trans 'Отметить как завершенную' %}{% endif %}
+                    </button>
+                    <button class="action-btn btn-primary send-btn" data-task-id="{{ task.id }}">{% trans 'Отправить' %}</button>
+
+                    {% if task.creator == request.user %}
+                        <button class="action-btn btn-danger delete-btn" data-task-id="{{ task.id }}">{% trans 'Удалить' %}</button>
+                        <button class="action-btn btn-secondary hide-btn" data-task-id="{{ task.id }}">{% trans 'Скрыть' %}</button>
+                    {% endif %}
+                </div>
+
+                <div class="task-icons">
+                    <!-- Icon to link to active tasks if there's a matching task -->
+                    {% if active_clients and task.client in active_clients %}
+                        <span class="task-icon" title="{% trans 'Соответствует активной задаче' %}">
+                            📋
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="alert alert-info">
+            {% trans 'Нет задач для отображения.' %}
+        </div>
+    {% endfor %}
+</div>

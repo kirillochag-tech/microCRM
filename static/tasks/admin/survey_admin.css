@@ -1,0 +1,50 @@
+/* Стилизация заголовков в анкете — финальная версия */
+
+/* === Заголовок ВАРИАНТОВ ОТВЕТОВ — точный селектор по структуре === */
+div[data-inline-model="tasks-surveyquestionchoice"] > div.tabular.inline-related > fieldset.module > h2 {
+    background-color: #e2e8f0 !important;    /* Фон заголовка — ещё темнее */
+    color: #6c757d !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 4px !important;
+    padding: 4px 12px !important;            /* Высота увеличена на 1px (было 3px) */
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    margin: 0 0 8px 0 !important;
+    display: block !important;
+    line-height: 1.1 !important;
+    text-transform: lowercase !important;
+}
+
+/* Капитализация только первой буквы "Варианты" */
+div[data-inline-model="tasks-surveyquestionchoice"] > div.tabular.inline-related > fieldset.module > h2::first-letter {
+    text-transform: uppercase !important;
+}
+
+/* === Фон ВСЕГО блока вариантов ответов === */
+div[data-inline-model="tasks-surveyquestionchoice"] {
+    margin-top: 6px !important;
+    padding-top: 6px !important;
+    border-top: 1px dashed #e2e8f0 !important;
+    background-color: #f1f5f9 !important;    /* Фон контейнера — тоже немного темнее */
+}
+
+/* === Заголовок ВОПРОСА — точный селектор === */
+div[data-inline-model="tasks-surveyquestion"] > h3.djn-drag-handler {
+    background-color: #94a8d1 !important;     /* Темный фон вопроса */
+    color: #0f172a !important;
+    border: 1px solid #64748b !important;
+    padding: 12px 16px !important;
+    font-weight: 700 !important;
+    margin: 0 0 16px 0 !important;
+    border-radius: 6px 6px 0 0 !important;
+    line-height: 1.3 !important;
+}
+
+/* Контейнер вопроса */
+div[data-inline-model="tasks-surveyquestion"] {
+    border: 2px solid #94a3b8 !important;
+    border-radius: 8px !important;
+    padding: 0 !important;
+    margin: 0 0 24px 0 !important;
+    background-color: #f1f5f9 !important;
+}

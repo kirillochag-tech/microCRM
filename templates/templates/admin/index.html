@@ -1,0 +1,115 @@
+{% extends "admin/index.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div id="content-main">
+  {% for app in app_list %}
+    {% if app.name == 'tasks' %}
+      <!-- TASKS group renamed to "Задачи" -->
+      <div class="app-{{ app.app_label }} module">
+        <table>
+          <caption>
+            <a href="{{ app.app_url }}" class="section" title="{% blocktrans with name=app.name %}Models in the {{ name }} application{% endblocktrans %}">
+              {% trans "Задачи" %}
+            </a>
+          </caption>
+          
+          {% for model in app.models %}
+            <!-- Skip these models in the TASKS group -->
+            {% if model.name != 'Варианты ответов' and model.name != 'Фото ответов' and model.name != 'Фото для отчетов' %}
+              <tr class="model-{{ model.object_name|lower }}">
+                {% if model.admin_url %}
+                  <th scope="row"><a href="{{ model.admin_url }}">{{ model.name }}</a></th>
+                {% else %}
+                  <th scope="row">{{ model.name }}</th>
+                {% endif %}
+
+                {% if model.add_url or model.admin_url %}
+                  <td>
+                    {% if model.admin_url %}
+                      <a href="{{ model.admin_url }}" class="changelink">{% trans 'Изменить' %}</a>
+                    {% endif %}
+                    {% if model.add_url %}
+                      <a href="{{ model.add_url }}" class="addlink">{% trans 'Добавить' %}</a>
+                    {% endif %}
+                  </td>
+                {% else %}
+                  <td>&nbsp;</td>
+                {% endif %}
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </table>
+      </div>
+    {% elif app.name == 'auth' %}
+      <!-- AUTH group renamed to "Пользователи и группы" -->
+      <div class="app-{{ app.app_label }} module">
+        <table>
+          <caption>
+            <a href="{{ app.app_url }}" class="section" title="{% blocktrans with name=app.name %}Models in the {{ name }} application{% endblocktrans %}">
+              {% trans "Пользователи и группы" %}
+            </a>
+          </caption>
+          
+          {% for model in app.models %}
+            <tr class="model-{{ model.object_name|lower }}">
+              {% if model.admin_url %}
+                <th scope="row"><a href="{{ model.admin_url }}">{{ model.name }}</a></th>
+              {% else %}
+                <th scope="row">{{ model.name }}</th>
+              {% endif %}
+
+              {% if model.add_url or model.admin_url %}
+                <td>
+                  {% if model.admin_url %}
+                    <a href="{{ model.admin_url }}" class="changelink">{% trans 'Изменить' %}</a>
+                  {% endif %}
+                  {% if model.add_url %}
+                    <a href="{{ model.add_url }}" class="addlink">{% trans 'Добавить' %}</a>
+                  {% endif %}
+                </td>
+              {% else %}
+                <td>&nbsp;</td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+    {% else %}
+      <!-- All other apps displayed normally -->
+      <div class="app-{{ app.app_label }} module">
+        <table>
+          <caption>
+            <a href="{{ app.app_url }}" class="section" title="{% blocktrans with name=app.name %}Models in the {{ name }} application{% endblocktrans %}">
+              {{ app.name }}
+            </a>
+          </caption>
+          
+          {% for model in app.models %}
+            <tr class="model-{{ model.object_name|lower }}">
+              {% if model.admin_url %}
+                <th scope="row"><a href="{{ model.admin_url }}">{{ model.name }}</a></th>
+              {% else %}
+                <th scope="row">{{ model.name }}</th>
+              {% endif %}
+
+              {% if model.add_url or model.admin_url %}
+                <td>
+                  {% if model.admin_url %}
+                    <a href="{{ model.admin_url }}" class="changelink">{% trans 'Изменить' %}</a>
+                  {% endif %}
+                  {% if model.add_url %}
+                    <a href="{{ model.add_url }}" class="addlink">{% trans 'Добавить' %}</a>
+                  {% endif %}
+                </td>
+              {% else %}
+                <td>&nbsp;</td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endblock %}

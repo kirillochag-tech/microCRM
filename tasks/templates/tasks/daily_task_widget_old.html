@@ -1,0 +1,2395 @@
+{% load static %}
+{% load i18n %}
+<style>
+.daily-task-widget {
+    margin-top: 20px;
+}
+
+.daily-task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.add-task-btn {
+    background-color: #28a745;
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.task-form-container {
+    display: none;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.task-item {
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    position: relative;
+    transition: all 0.3s ease;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.task-item.completed {
+    text-decoration: line-through;
+    opacity: 0.7;
+    background-color: #f8f9fa;
+}
+
+.task-item.hidden {
+    display: none;
+}
+
+.task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+}
+
+.task-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #495057;
+}
+
+.task-date {
+    font-size: 0.9rem;
+    color: #6c757d;
+    background-color: #e9ecef;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.task-client {
+    font-size: 0.95rem;
+    color: #495057;
+    margin: 0.5rem 0;
+    padding: 0.25rem 0;
+}
+
+.task-description {
+    margin: 0.75rem 0;
+    padding: 0.75rem;
+    background-color: #f8f9fa;
+    border-left: 3px solid #0d6efd;
+    border-radius: 0.25rem;
+    font-size: 0.95rem;
+}
+
+.task-result {
+    margin: 0.75rem 0;
+    padding: 0.75rem;
+    background-color: #e8f5e9;
+    border-left: 3px solid #198754;
+    border-radius: 0.25rem;
+    font-size: 0.95rem;
+}
+
+.task-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+    padding-top: 0.75rem;
+    border-top: 1px solid #eee;
+}
+
+.action-btn {
+    padding: 0.375rem 0.75rem;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.15s ease-in-out;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+}
+
+.btn-success {
+    background-color: #198754;
+    color: white;
+}
+
+.btn-success:hover {
+    background-color: #157347;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #bb2d3b;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #5c636a;
+}
+
+.task-filters {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 0.75rem;
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    border: 1px solid #dee2e6;
+}
+
+.filter-btn {
+    padding: 0.375rem 0.75rem;
+    border: 1px solid #ced4da;
+    background-color: #fff;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.15s ease-in-out;
+}
+
+.filter-btn:hover {
+    background-color: #e9ecef;
+}
+
+.filter-btn.active {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+.task-icons {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    gap: 0.3rem;
+}
+
+/* Styling for edit fields */
+.edit-field-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    align-items: center;
+}
+
+.edit-field-col {
+    flex: 1 1 auto;
+    min-width: 150px;
+}
+
+
+.edit-field-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: #495057;
+}
+
+.edit-field-input {
+    width: 100%;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    transition: border-color 0.15s ease-in-out;
+}
+
+.edit-field-input:focus {
+    outline: none;
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+
+/* Responsive adjustments for mobile devices */
+@media (max-width: 767.98px) {
+    .edit-field-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .edit-field-col {
+        min-width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .task-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .task-date {
+        align-self: flex-end;
+    }
+}
+
+/* Style for active custom date filter indicator */
+input[type="date"].active-date-filter {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Style for date input with no value (status filters) */
+input[type="date"].date-placeholder {
+    color: #6c757d;
+}
+
+.task-icon {
+    cursor: pointer;
+    font-size: 1.1rem;
+    color: #0d6efd;
+    margin-left: 8px;
+    vertical-align: middle;
+    position: relative;
+    display: inline-block;
+    text-decoration: none;
+}
+
+.task-icon:hover {
+    color: #0a58ca;
+    text-decoration: none;
+}
+
+.task-icon-inline {
+    display: inline-block;
+}
+
+.task-count-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background-color: #dc3545;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    padding: 2px 5px;
+    border-radius: 50%;
+    min-width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.drag-handle {
+    cursor: move;
+    color: #adb5bd;
+    margin-right: 0.75rem;
+    font-size: 1.2rem;
+}
+
+/* Auto-refresh indicator */
+.auto-refresh-indicator {
+    display: inline-block;
+    margin-left: 10px;
+    font-size: 0.8em;
+    color: #6c757d;
+}
+
+.task-priority {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+    color: white;
+    margin-left: 0.75rem;
+    font-weight: 500;
+}
+
+.priority-1 { background-color: #198754; } /* Low priority - green */
+.priority-2 { background-color: #ffc107; color: #212529; } /* Medium priority - yellow */
+.priority-3 { background-color: #dc3545; } /* High priority - red */
+
+/* Drag and drop styles */
+.sortable-ghost {
+    opacity: 0.6;
+}
+
+.sortable-chosen {
+    transform: scale(1.02);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Card-like styling for consistency with other widgets */
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 600;
+}
+
+.form-control {
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.form-control:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Autocomplete styles */
+#client-list {
+    position: absolute;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #ccc;
+    max-height: 200px;
+    overflow-y: auto;
+    width: 100%;
+    display: none;
+    margin-top: 5px;
+}
+
+#client-list div {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+#client-list div:hover {
+    background-color: #f5f5f5;
+}
+
+#client-input-container {
+    position: relative;
+}
+
+/* Collapsible task styles */
+.client-name-clickable {
+    cursor: pointer;
+    text-decoration: underline;
+    color: #0d6efd;
+}
+
+.client-name-clickable:hover {
+    color: #0b5ed7;
+}
+
+.task-details {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
+/* Filters alignment */
+.task-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.date-filter-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767.98px) {
+    .date-filter-container {
+        min-width: 120px; /* Ensure date picker has enough space */
+    }
+    
+    .task-filters {
+        gap: 0.5rem;
+    }
+    
+    .mobile-filters-container {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+}
+</style>
+
+<div id="daily-task-widget" class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans 'План дня' %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="daily-task-widget">
+                        <!-- Header with add button -->
+                        <div class="daily-task-header">
+                            <button id="add-task-btn" class="add-task-btn">{% trans '+ Добавить задачу' %}</button>
+                        </div>
+                        
+                        <!-- Task creation form -->
+                        <div id="task-form-container" class="task-form-container">
+                            <form id="task-form">
+                                {% csrf_token %}
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label for="task-date" class="form-label">{% trans 'Дата' %}:</label>
+                                        <input type="date" id="task-date" name="date" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="task-client" class="form-label">{% trans 'Клиент' %}:</label>
+                                        <div id="client-input-container">
+                                            <input type="text" id="task-client" name="client_name" class="form-control" placeholder="{% trans 'Начните вводить имя клиента...' %}" required>
+                                            <div id="client-list" style="display: none;"></div>
+                                        </div>
+                                        <input type="hidden" name="client_id" id="task-selected-client-id">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="task-assignee" class="form-label">{% trans 'Исполнитель' %}:</label>
+                                        <select id="task-assignee" name="assignee_id" class="form-select">
+                                            <option value="{{ request.user.id }}">-- {% trans 'Я (по умолчанию)' %} --</option>
+                                            {% for employee in employees %}
+                                                <option value="{{ employee.id }}">{{ employee.get_full_name|default:employee.username }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="task-priority" class="form-label">{% trans 'Приоритет' %}:</label>
+                                        <select id="task-priority" name="priority" class="form-select">
+                                            <option value="3">{% trans 'Высокий' %}</option>
+                                            <option value="2" selected>{% trans 'Средний' %}</option>
+                                            <option value="1">{% trans 'Низкий' %}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-3 mt-3">
+                                    <label for="task-description" class="form-label">{% trans 'Описание задачи' %}:</label>
+                                    <textarea id="task-description" name="description" class="form-control" rows="3" required></textarea>
+                                </div>
+                                <div class="mt-3">
+                                    <button type="submit" class="btn btn-primary">{% trans 'Создать задачу' %}</button>
+                                    <button type="button" id="cancel-add-task" class="btn btn-secondary ms-2">{% trans 'Отмена' %}</button>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <!-- Filters -->
+                        <div class="task-filters d-flex flex-wrap align-items-center">
+                            <!-- Desktop filters -->
+                            <div class="d-none d-md-block flex-grow-1">
+                                <button class="filter-btn active" data-filter="today">{% trans 'Сегодня' %}</button>
+                                <button class="filter-btn" data-filter="yesterday">{% trans 'Вчера' %}</button>
+                                <button class="filter-btn" data-filter="tomorrow">{% trans 'Завтра' %}</button>
+                                <button class="filter-btn" data-filter="active">{% trans 'Активные' %}</button>
+                                <button class="filter-btn" data-filter="completed">{% trans 'Завершенные' %}</button>
+                                <button class="filter-btn" data-filter="all">{% trans 'Все' %}</button>
+                            </div>
+                            
+                            <!-- Mobile filters and date picker -->
+                            <div class="d-md-none w-100 d-flex flex-wrap gap-2 mb-2">
+                                <div class="flex-grow-1">
+                                    <div class="dropdown">
+                                        <button class="btn btn-outline-secondary dropdown-toggle w-100" type="button" id="mobileFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                            {% trans 'Фильтры' %}
+                                        </button>
+                                        <ul class="dropdown-menu w-100" aria-labelledby="mobileFilterDropdown">
+                                            <li><button class="dropdown-item filter-btn active" data-filter="today">{% trans 'Сегодня' %}</button></li>
+                                            <li><button class="dropdown-item filter-btn" data-filter="yesterday">{% trans 'Вчера' %}</button></li>
+                                            <li><button class="dropdown-item filter-btn" data-filter="tomorrow">{% trans 'Завтра' %}</button></li>
+                                            <li><button class="dropdown-item filter-btn" data-filter="active">{% trans 'Активные' %}</button></li>
+                                            <li><button class="dropdown-item filter-btn" data-filter="completed">{% trans 'Завершенные' %}</button></li>
+                                            <li><button class="dropdown-item filter-btn" data-filter="all">{% trans 'Все' %}</button></li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div class="date-filter-container flex-grow-1">
+                                    <input type="date" id="custom-date-filter-mobile" class="form-control w-100">
+                                </div>
+                            </div>
+
+                            <!-- Date filter field for desktop -->
+                            <div class="date-filter-container ms-md-auto d-none d-md-block">
+                                <input type="date" id="custom-date-filter-desktop" class="form-control" style="width: auto; display: inline-block;">
+                            </div>
+                        </div>
+                        
+                        <!-- Task list -->
+                        <div id="task-list">
+                            {% for task in daily_tasks %}
+                            <div class="task-item {% if task.status == 'completed' %}completed{% endif %}" data-task-id="{{ task.id }}" data-status="{{ task.status }}">
+                                <div class="drag-handle">☰</div>
+                                <div class="task-header">
+                                    <div class="task-title">
+                                        <span id="client-name-{{ task.id }}" class="client-name-clickable" onclick="toggleTaskDetails({{ task.id }})">{{ task.client.name|truncatechars:30 }}</span>
+                                        <div id="client-input-container-{{ task.id }}">
+                                            <input type="text" id="edit-client-{{ task.id }}" class="edit-field-input mt-2" style="display: none;" value="{{ task.client.name }}">
+                                            <div id="client-list-edit-{{ task.id }}" class="client-list" style="display: none;"></div>
+                                        </div>
+                                        <input type="hidden" id="edit-client-id-{{ task.id }}" name="client_id" value="{{ task.client.id }}">
+                                        <span class="task-priority priority-{{ task.priority }}">{% trans 'Приоритет' %}: {{ task.priority }}</span>
+                                        <!-- Icon to link to active tasks if there's a matching task -->
+                                        {% if active_clients %}
+                                            {% for active_client in active_clients %}
+                                                {% if active_client.id == task.client.id %}
+                                                    {% if 'SURVEY' in active_client.tasks_types and 'EQUIPMENT_PHOTO' in active_client.tasks_types or 'SURVEY' in active_client.tasks_types and 'SIMPLE_PHOTO' in active_client.tasks_types %}
+                                                        <!-- Both types - show separate icons with shared badge -->
+                                                        <span style="position: relative; display: inline-block;">
+                                                            <a href="{% url 'tasks:task_detail' active_client.survey_task_id %}" class="task-icon task-icon-inline" title="{% trans 'Анкета' %}">
+                                                                📋
+                                                            </a>
+                                                            <a href="{% url 'tasks:task_detail' active_client.photo_task_id %}" class="task-icon task-icon-inline" title="{% trans 'Фотоотчет' %}">
+                                                                📷
+                                                            </a>
+                                                            {% if active_client.tasks_count > 1 %}
+                                                                <span class="task-count-badge" style="position: absolute; top: -8px; right: -8px;">{{ active_client.tasks_count }}</span>
+                                                            {% endif %}
+                                                        </span>
+                                                    {% elif 'SURVEY' in active_client.tasks_types %}
+                                                        <!-- Only survey -->
+                                                        <a href="{% url 'tasks:task_detail' active_client.survey_task_id %}" class="task-icon task-icon-inline" title="{% trans 'Анкета: ' %}{{ active_client.tasks_count }} шт.">
+                                                            {% if active_client.tasks_count > 1 %}
+                                                                <span class="task-count-badge">{{ active_client.tasks_count }}</span>
+                                                            {% endif %}
+                                                            📋
+                                                        </a>
+                                                    {% elif 'EQUIPMENT_PHOTO' in active_client.tasks_types or 'SIMPLE_PHOTO' in active_client.tasks_types %}
+                                                        <!-- Only photo -->
+                                                        <a href="{% url 'tasks:task_detail' active_client.photo_task_id %}" class="task-icon task-icon-inline" title="{% trans 'Фотоотчет: ' %}{{ active_client.tasks_count }} шт.">
+                                                            {% if active_client.tasks_count > 1 %}
+                                                                <span class="task-count-badge">{{ active_client.tasks_count }}</span>
+                                                            {% endif %}
+                                                            📷
+                                                        </a>
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                    <div class="task-date" id="task-date-{{ task.id }}">{{ task.date|date:"d.m.Y" }}</div>
+                                </div>
+
+                                <div class="task-details" id="task-details-{{ task.id }}" style="display: none;">
+                                    <div class="edit-fields-container">
+                                        <div class="edit-field-row">
+                                            <div class="edit-field-col">
+                                                <label class="edit-field-label">{% trans 'Исполнитель' %}:</label>
+                                                <span id="assignee-{{ task.id }}">{{ task.assignee.get_full_name|default:task.assignee.username }}</span>
+                                                <select id="edit-assignee-{{ task.id }}" class="edit-field-input" style="display: none;">
+                                                    {% for employee in employees %}
+                                                        <option value="{{ employee.id }}" {% if employee.id == task.assignee.id %}selected{% endif %}>
+                                                            {{ employee.get_full_name|default:employee.username }}
+                                                        </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="edit-field-col">
+                                                <label class="edit-field-label">{% trans 'Дата' %}:</label>
+                                                <span id="task-date-display-{{ task.id }}">{{ task.date|date:"d.m.Y" }}</span>
+                                                <input type="date" id="task-date-edit-{{ task.id }}" class="edit-field-input" style="display: none;" value="{{ task.date|date:"Y-m-d" }}">
+                                            </div>
+                                            <div class="edit-field-col">
+                                                <label class="edit-field-label">{% trans 'Приоритет' %}:</label>
+                                                <span class="task-priority priority-{{ task.priority }}">{% trans 'Приоритет' %}: {{ task.priority }}</span>
+                                                <select id="edit-priority-{{ task.id }}" class="edit-field-input" style="display: none;">
+                                                    <option value="3" {% if task.priority == 3 %}selected{% endif %}>{% trans 'Высокий' %}</option>
+                                                    <option value="2" {% if task.priority == 2 %}selected{% endif %}>{% trans 'Средний' %}</option>
+                                                    <option value="1" {% if task.priority == 1 %}selected{% endif %}>{% trans 'Низкий' %}</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="task-description">
+                                        <strong>{% trans 'Описание:' %}</strong>
+                                        <div id="desc-{{ task.id }}">{{ task.description }}</div>
+                                        <textarea id="edit-desc-{{ task.id }}" class="edit-field-input mt-2" style="display: none;">{{ task.description }}</textarea>
+                                    </div>
+
+                                    <div class="task-result">
+                                        <strong>{% trans 'Результат:' %}</strong>
+                                        <div id="result-{{ task.id }}">{{ task.result|default:"Не указан" }}</div>
+                                        <textarea id="edit-result-{{ task.id }}" class="edit-field-input mt-2" style="display: none;">{{ task.result|default:"" }}</textarea>
+                                    </div>
+
+                                    <div class="task-actions">
+                                        <button class="action-btn btn-primary edit-btn" data-task-id="{{ task.id }}">{% trans 'Редактировать' %}</button>
+                                        <button class="action-btn btn-success save-btn" data-task-id="{{ task.id }}" style="display: none;">{% trans 'Сохранить' %}</button>
+                                        <button class="action-btn btn-success complete-btn" data-task-id="{{ task.id }}">
+                                            {% if task.status == 'completed' %}{% trans 'Отметить как активную' %}{% else %}{% trans 'Отметить как завершенную' %}{% endif %}
+                                        </button>
+
+                                        {% if task.creator == request.user %}
+                                            <button class="action-btn btn-danger delete-btn" data-task-id="{{ task.id }}">{% trans 'Удалить' %}</button>
+                                            <button class="action-btn btn-secondary hide-btn" data-task-id="{{ task.id }}">{% trans 'Скрыть' %}</button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="alert alert-info" role="alert">
+                                {% trans 'Нет задач для отображения.' %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script>
+// Debounce function to limit the rate of function calls
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        // Сохраняем контекст вызова (this)
+        const context = this;
+        const later = () => {
+            clearTimeout(timeout);
+            func.apply(context, args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Helper function to format date as YYYY-MM-DD (global)
+function formatDateForInput(dateObj) {
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// Helper function to apply date filter (global)
+function applyDateFilter(targetDate) {
+    const taskItems = document.querySelectorAll('.task-item');
+    targetDate.setHours(0, 0, 0, 0);
+
+    taskItems.forEach(item => {
+        const taskDateElement = item.querySelector('.task-date');
+        let showItem = false;
+
+        if (taskDateElement) {
+            const itemDateText = taskDateElement.textContent.trim();
+            if (itemDateText) {
+                const itemDate = new Date(itemDateText.split('.').reverse().join('-'));
+                itemDate.setHours(0, 0, 0, 0);
+                showItem = itemDate.getTime() === targetDate.getTime();
+            }
+        }
+
+        item.style.display = showItem ? 'block' : 'none';
+    });
+}
+
+// Helper function to apply custom date filter (global)
+function applyCustomDateFilter(selectedDate) {
+    if (!selectedDate) return;
+
+    // Apply filter using the helper function
+    const targetDate = new Date(selectedDate);
+    applyDateFilter(targetDate);
+
+    // Update date picker inputs to match the selected date
+    const dateFilterMobile = document.getElementById('custom-date-filter-mobile');
+    const dateFilterDesktop = document.getElementById('custom-date-filter-desktop');
+    const dateString = formatDateForInput(targetDate);
+    if (dateFilterMobile) dateFilterMobile.value = dateString;
+    if (dateFilterDesktop) dateFilterDesktop.value = dateString;
+
+    // Update active filter button - highlight the date filter input
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Add active class to indicate date filter is in use
+    const dateFilterBtn = document.querySelector('#custom-date-filter-desktop, #custom-date-filter-mobile');
+    if (dateFilterBtn) {
+        dateFilterBtn.classList.add('active-date-filter');
+    }
+
+    // Update mobile dropdown text to show selected date
+    const mobileDropdownButton = document.getElementById('mobileFilterDropdown');
+    if (mobileDropdownButton) {
+        const formattedDate = new Date(selectedDate).toLocaleDateString('ru-RU');
+        mobileDropdownButton.innerHTML = `Дата: ${formattedDate} <span class="caret"></span>`;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Set initial text for mobile filter dropdown to match the active filter
+    const activeFilterBtn = document.querySelector('.filter-btn.active');
+    if (activeFilterBtn) {
+        const filterText = activeFilterBtn.textContent || activeFilterBtn.innerText;
+        const mobileDropdownButton = document.getElementById('mobileFilterDropdown');
+        if (mobileDropdownButton) {
+            mobileDropdownButton.innerHTML = filterText + ' <span class="caret"></span>';
+        }
+    }
+
+    // Initialize form handlers
+    initializeFormHandlers();
+
+    // Update mobile filter dropdown text when a filter is selected from the dropdown
+    document.querySelectorAll('.dropdown-item.filter-btn').forEach(item => {
+        item.addEventListener('click', function() {
+            const filterText = this.textContent || this.innerText;
+            const mobileDropdownButton = document.getElementById('mobileFilterDropdown');
+            if (mobileDropdownButton) {
+                mobileDropdownButton.innerHTML = filterText + ' <span class="caret"></span>';
+            }
+        });
+    });
+
+    // Set today's date as default
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('task-date').value = today;
+
+    // Task form submission
+    document.getElementById('task-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const taskData = Object.fromEntries(formData.entries());
+        
+        fetch('{% url "tasks:create_daily_task" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(taskData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                const taskFormContainer = document.getElementById('task-form-container');
+                if (taskFormContainer) {
+                    taskFormContainer.style.display = 'none';
+                }
+                const taskForm = document.getElementById('task-form');
+                if (taskForm) {
+                    taskForm.reset();
+                }
+                // Reload the page to show the new task
+                location.reload();
+            } else {
+                alert('Ошибка: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Произошла ошибка при создании задачи');
+        });
+    });
+    
+    // Task editing functionality
+    document.querySelectorAll('.edit-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const taskId = this.getAttribute('data-task-id');
+            
+            // Show edit fields
+            document.getElementById(`edit-desc-${taskId}`).style.display = 'block';
+            document.getElementById(`desc-${taskId}`).style.display = 'none';
+            
+            document.getElementById(`edit-result-${taskId}`).style.display = 'block';
+            document.getElementById(`result-${taskId}`).style.display = 'none';
+            
+            // Show client edit field
+            document.getElementById(`edit-client-${taskId}`).style.display = 'block';
+            document.getElementById(`client-name-${taskId}`).style.display = 'none';
+            
+            // Show assignee edit field
+            document.getElementById(`edit-assignee-${taskId}`).style.display = 'inline-block';
+            document.getElementById(`assignee-${taskId}`).style.display = 'none';
+            
+            // Show date edit field (now located in task details section) and hide the display date
+            document.getElementById(`task-date-edit-${taskId}`).style.display = 'block';
+            const taskDateDisplay = document.getElementById(`task-date-display-${taskId}`);
+            if (taskDateDisplay) {
+                taskDateDisplay.style.display = 'none';
+            }
+            
+            // Show priority edit field
+            document.getElementById(`edit-priority-${taskId}`).style.display = 'block';
+            document.querySelector(`#task-details-${taskId} .task-priority`).style.display = 'none';
+
+            // Show save button, hide edit button
+            this.style.display = 'none';
+            document.querySelector(`.save-btn[data-task-id="${taskId}"]`).style.display = 'inline-block';
+
+            // Initialize client autocomplete for this task
+            setupClientAutocomplete(taskId);
+            
+            // Set the current assignee as selected in the dropdown
+            const assigneeSelect = document.getElementById(`edit-assignee-${taskId}`);
+            const currentAssigneeId = "{{ task.assignee.id }}"; // Получаем ID текущего исполнителя из Django-шаблона
+            if (assigneeSelect && currentAssigneeId) {
+                assigneeSelect.value = currentAssigneeId;
+            }
+            
+            // Set the current priority as selected in the dropdown
+            const prioritySelect = document.getElementById(`edit-priority-${taskId}`);
+            const currentPriority = "{{ task.priority }}"; // Получаем текущий приоритет из Django-шаблона
+            if (prioritySelect && currentPriority) {
+                prioritySelect.value = currentPriority;
+            }
+        });
+    });
+    
+    // Save edited task
+    document.querySelectorAll('.save-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const taskId = this.getAttribute('data-task-id');
+            
+            const description = document.getElementById(`edit-desc-${taskId}`).value;
+            const result = document.getElementById(`edit-result-${taskId}`).value;
+            const assigneeId = document.getElementById(`edit-assignee-${taskId}`).value;
+            const taskDate = document.getElementById(`task-date-edit-${taskId}`).value;
+            const priorityValue = document.getElementById(`edit-priority-${taskId}`).value;
+
+            // Get client ID from the hidden input
+            const hiddenClientIdInput = document.getElementById(`edit-client-id-${taskId}`);
+            const clientId = hiddenClientIdInput ? hiddenClientIdInput.value : null;
+
+            // If no client ID was set via autocomplete, try to find it by name
+            const clientEditInput = document.getElementById(`edit-client-${taskId}`);
+            const clientName = clientEditInput.value;
+
+            // Prepare request data
+            const requestData = {
+                description: description,
+                result: result,
+                client_id: clientId || clientName
+            };
+
+            // Only add assignee_id if it's provided, otherwise server will use current user
+            if (assigneeId) {
+                requestData.assignee_id = assigneeId;
+            }
+
+            // Add date if it's provided
+            if (taskDate) {
+                requestData.date = taskDate;
+            }
+
+            // Add priority if it's provided
+            if (priorityValue) {
+                requestData.priority = priorityValue;
+            }
+
+            fetch('{% url "tasks:update_daily_task" task_id=0 %}'.replace('0', taskId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update display values
+                    document.getElementById(`desc-${taskId}`).textContent = description;
+                    document.getElementById(`result-${taskId}`).textContent = result || 'Не указан';
+                    
+                    // Get the selected assignee text, with fallback to current user if no selection
+                    const assigneeSelect = document.getElementById(`edit-assignee-${taskId}`);
+                    let assigneeText;
+                    if (assigneeSelect.selectedOptions[0]) {
+                        assigneeText = assigneeSelect.selectedOptions[0].text;
+                    } else {
+                        // Fallback to current user's name if no option is selected
+                        assigneeText = "{{ request.user.get_full_name|default:request.user.username }}";
+                    }
+                    document.getElementById(`assignee-${taskId}`).textContent = assigneeText;
+                    
+                    document.getElementById(`client-name-${taskId}`).textContent = clientEditInput.value;
+                    
+                    // Update the displayed date
+                    const taskDateInput = document.getElementById(`task-date-edit-${taskId}`);
+                    if (taskDateInput && taskDateInput.value) {
+                        const selectedDate = new Date(taskDateInput.value);
+                        const formattedDate = selectedDate.toLocaleDateString('ru-RU'); // Format as DD.MM.YYYY
+                        const taskDateDisplay = document.getElementById(`task-date-display-${taskId}`);
+                        if (taskDateDisplay) {
+                            taskDateDisplay.textContent = formattedDate;
+                        }
+                    }
+                    
+                    // Update the displayed priority
+                    const prioritySelect = document.getElementById(`edit-priority-${taskId}`);
+                    if (prioritySelect && prioritySelect.value) {
+                        const priorityValue = prioritySelect.value;
+                        // Get the text of the selected option
+                        const prioritySelectElement = document.getElementById(`edit-priority-${taskId}`);
+                        const priorityText = prioritySelectElement.options[prioritySelectElement.selectedIndex].text;
+                        const priorityTextElement = document.querySelector(`#task-details-${taskId} .task-priority`);
+                        if (priorityTextElement) {
+                            priorityTextElement.textContent = `{% trans 'Приоритет' %}: ${priorityText}`;
+                            priorityTextElement.className = `task-priority priority-${priorityValue}`;
+                        }
+                    }
+                    
+                    // Switch back to display mode
+                    document.getElementById(`edit-desc-${taskId}`).style.display = 'none';
+                    document.getElementById(`desc-${taskId}`).style.display = 'inline';
+
+                    document.getElementById(`edit-result-${taskId}`).style.display = 'none';
+                    document.getElementById(`result-${taskId}`).style.display = 'inline';
+
+                    document.getElementById(`edit-client-${taskId}`).style.display = 'none';
+                    document.getElementById(`client-name-${taskId}`).style.display = 'inline';
+
+                    document.getElementById(`edit-assignee-${taskId}`).style.display = 'none';
+                    document.getElementById(`assignee-${taskId}`).style.display = 'inline';
+
+                    // Hide date edit field (located in task details section)
+                    document.getElementById(`task-date-edit-${taskId}`).style.display = 'none';
+                    const taskDateDisplay = document.getElementById(`task-date-display-${taskId}`);
+                    if (taskDateDisplay) {
+                        taskDateDisplay.style.display = 'inline';
+                    }
+                    
+                    document.getElementById(`edit-priority-${taskId}`).style.display = 'none';
+                    document.querySelector(`#task-details-${taskId} .task-priority`).style.display = 'inline';
+                    
+                    // Show edit button, hide save button
+                    document.querySelector(`.edit-btn[data-task-id="${taskId}"]`).style.display = 'inline-block';
+                    this.style.display = 'none';
+                    
+                    alert(data.message);
+                } else {
+                    alert('Ошибка: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Произошла ошибка при сохранении задачи');
+            });
+        });
+    });
+    
+    // Toggle task completion
+    document.querySelectorAll('.complete-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const taskId = this.getAttribute('data-task-id');
+            
+            fetch('{% url "tasks:toggle_daily_task_status" task_id=0 %}'.replace('0', taskId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+                    if (data.status === 'completed') {
+                        taskElement.classList.add('completed');
+                        this.textContent = '{% trans 'Отметить как активную' %}';
+                    } else {
+                        taskElement.classList.remove('completed');
+                        this.textContent = '{% trans 'Отметить как завершенную' %}';
+                    }
+                    alert(data.message);
+                } else {
+                    alert('Ошибка: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Произошла ошибка при обновлении статуса задачи');
+            });
+        });
+    });
+
+    // Delete task
+    document.querySelectorAll('.delete-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            if (confirm('Вы уверены, что хотите удалить эту задачу?')) {
+                const taskId = this.getAttribute('data-task-id');
+                
+                fetch('{% url "tasks:delete_daily_task" task_id=0 %}'.replace('0', taskId), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.querySelector(`[data-task-id="${taskId}"]`).remove();
+                        alert(data.message);
+                    } else {
+                        alert('Ошибка: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Произошла ошибка при удалении задачи');
+                });
+            }
+        });
+    });
+    
+    // Hide task
+    document.querySelectorAll('.hide-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const taskId = this.getAttribute('data-task-id');
+            
+            fetch('{% url "tasks:hide_daily_task" task_id=0 %}'.replace('0', taskId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.querySelector(`[data-task-id="${taskId}"]`).classList.add('hidden');
+                    alert(data.message);
+                } else {
+                    alert('Ошибка: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Произошла ошибка при скрытии задачи');
+            });
+        });
+    });
+
+    // Set today's date as default in custom date filter
+    const currentDate = new Date();
+    const currentDateString = formatDateForInput(currentDate);
+    const customDateFilterMobile = document.getElementById('custom-date-filter-mobile');
+    const customDateFilterDesktop = document.getElementById('custom-date-filter-desktop');
+    if (customDateFilterMobile) {
+        customDateFilterMobile.value = currentDateString;
+    }
+    if (customDateFilterDesktop) {
+        customDateFilterDesktop.value = currentDateString;
+    }
+
+    // Custom date filter - unified handler for both mobile and desktop
+    if (customDateFilterMobile) {
+        customDateFilterMobile.addEventListener('change', function() {
+            // Sync with desktop filter
+            if (customDateFilterDesktop) {
+                customDateFilterDesktop.value = this.value;
+            }
+            applyCustomDateFilter(this.value);
+        });
+    }
+    if (customDateFilterDesktop) {
+        customDateFilterDesktop.addEventListener('change', function() {
+            // Sync with mobile filter
+            if (customDateFilterMobile) {
+                customDateFilterMobile.value = this.value;
+            }
+            applyCustomDateFilter(this.value);
+        });
+    }
+    
+    // Initialize SortableJS for drag-and-drop sorting
+    const taskList = document.getElementById('task-list');
+    new Sortable(taskList, {
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        handle: '.drag-handle',
+        onEnd: function(evt) {
+            // Get the new order of task IDs
+            const taskIds = Array.from(taskList.children).map(child => child.getAttribute('data-task-id'));
+
+            // Send the new order to the server
+            fetch('{% url "tasks:update_task_positions" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ positions: taskIds })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error('Error updating positions:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+    });
+
+    // Initialize event handlers for the first load
+    initializeEventHandlers();
+
+    // Apply "today" filter by default on page load (after event handlers are initialized)
+    const todayFilterBtn = document.querySelector('.filter-btn[data-filter="today"]');
+    if (todayFilterBtn) {
+        todayFilterBtn.click();
+    }
+});
+
+// Client autocomplete functionality (same as in survey form)
+const clientInput = document.getElementById('task-client');
+const resultsDiv = document.getElementById('client-list');
+const hiddenInput = document.getElementById('task-selected-client-id');
+
+if (clientInput && resultsDiv && hiddenInput) {
+    clientInput.addEventListener('input', debounce(async function() {
+        const query = (this.value || '').trim();
+        resultsDiv.innerHTML = '';
+        resultsDiv.style.display = 'none';
+
+        if (query.length < 2) return;
+
+        try {
+            // Используем тот же API-эндпоинт, что и в survey form
+            const response = await fetch(`/tasks/autocomplete_clients/?q=${encodeURIComponent(query)}`);
+            if (!response.ok) {
+                console.error('Ошибка поиска клиентов');
+                return;
+            }
+            const clients = await response.json();
+            if (clients.length === 0) return;
+
+            resultsDiv.innerHTML = clients.map(client =>
+                `<div onclick="selectClient(${client.id}, '${client.name.replace(/'/g, "\\'")}')">
+                    <strong>${client.name}</strong>
+                    ${client.address ? `<br><small>${client.address}</small>` : ''}
+                </div>`
+            ).join('');
+
+            resultsDiv.style.display = 'block';
+        } catch (err) {
+            console.error('Ошибка сети:', err);
+        }
+    }, 300)); // 300ms delay
+
+    // Global function to select client (gets elements dynamically to work after auto-refresh)
+    window.selectClient = function (id, name) {
+        const currentClientInput = document.getElementById('task-client');
+        const currentHiddenInput = document.getElementById('task-selected-client-id');
+        const currentResultsDiv = document.getElementById('client-list');
+        
+        if (currentClientInput) currentClientInput.value = name;
+        if (currentHiddenInput) currentHiddenInput.value = id;
+        if (currentResultsDiv) currentResultsDiv.style.display = 'none';
+    };
+
+    document.addEventListener('click', function (e) {
+        const currentClientInput = document.getElementById('task-client');
+        const currentResultsDiv = document.getElementById('client-list');
+        
+        if (currentClientInput && !currentClientInput.contains(e.target) && 
+            currentResultsDiv && !currentResultsDiv.contains(e.target)) {
+            currentResultsDiv.style.display = 'none';
+        }
+    });
+}
+
+// Client autocomplete functionality for task editing
+function setupClientAutocomplete(taskId) {
+    const clientEditInput = document.getElementById(`edit-client-${taskId}`);
+    const resultsDivId = `client-list-edit-${taskId}`;
+
+    // Create results div if it doesn't exist
+    let resultsDiv = document.getElementById(resultsDivId);
+    if (!resultsDiv) {
+        resultsDiv = document.createElement('div');
+        resultsDiv.id = resultsDivId;
+        resultsDiv.className = 'client-list';
+        resultsDiv.style.display = 'none';
+        clientEditInput.parentNode.appendChild(resultsDiv);
+    }
+
+    const hiddenInputId = `edit-client-id-${taskId}`;
+    let hiddenInput = document.getElementById(hiddenInputId);
+    if (!hiddenInput) {
+        hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.id = hiddenInputId;
+        hiddenInput.name = 'client_id';
+        hiddenInput.value = clientEditInput.value; // Set initial value
+        clientEditInput.parentNode.appendChild(hiddenInput);
+    }
+
+    if (clientEditInput && resultsDiv && hiddenInput) {
+        // Remove existing listener to avoid duplicates
+        const newClientEditInput = clientEditInput.cloneNode(true);
+        clientEditInput.parentNode.replaceChild(newClientEditInput, clientEditInput);
+        
+        newClientEditInput.addEventListener('input', debounce(async function() {
+            const query = (this.value || '').trim();
+            const resultsDiv = document.getElementById(resultsDivId);
+            resultsDiv.innerHTML = '';
+            resultsDiv.style.display = 'none';
+
+            if (query.length < 2) return;
+
+            try {
+                // Используем тот же API-эндпоинт, что и в survey form
+                const response = await fetch(`/tasks/autocomplete_clients/?q=${encodeURIComponent(query)}`);
+                if (!response.ok) {
+                    console.error('Ошибка поиска клиентов');
+                    return;
+                }
+                const clients = await response.json();
+                if (clients.length === 0) return;
+
+                resultsDiv.innerHTML = clients.map(client =>
+                    `<div onclick="selectClientForEdit(${taskId}, ${client.id}, '${client.name.replace(/'/g, "\\'")}')">
+                        <strong>${client.name}</strong>
+                        ${client.address ? `<br><small>${client.address}</small>` : ''}
+                    </div>`
+                ).join('');
+
+                resultsDiv.style.display = 'block';
+            } catch (err) {
+                console.error('Ошибка сети:', err);
+            }
+        }, 300)); // 300ms delay
+    }
+}
+
+window.selectClientForEdit = function(taskId, id, name) {
+    const clientEditInput = document.getElementById(`edit-client-${taskId}`);
+    const resultsDiv = document.getElementById(`client-list-edit-${taskId}`);
+    const hiddenInput = document.getElementById(`edit-client-id-${taskId}`);
+    
+    if (clientEditInput && hiddenInput) {
+        clientEditInput.value = name;
+        hiddenInput.value = id;
+    }
+    
+    if (resultsDiv) {
+        resultsDiv.style.display = 'none';
+    }
+};
+
+// Hide suggestions when clicking elsewhere
+document.addEventListener('click', function (e) {
+    const allResultsDivs = document.querySelectorAll('[id^="client-list-edit-"]');
+    allResultsDivs.forEach(div => {
+        if (div.style.display === 'block') {
+            const inputId = div.id.replace('client-list-edit-', 'edit-client-');
+            const input = document.getElementById(inputId);
+            if (input && !input.contains(e.target) && !div.contains(e.target)) {
+                div.style.display = 'none';
+            }
+        }
+    });
+});
+
+
+// Function to toggle task details visibility
+function toggleTaskDetails(taskId) {
+    const detailsDiv = document.getElementById(`task-details-${taskId}`);
+    if (detailsDiv) {
+        if (detailsDiv.style.display === 'none' || detailsDiv.style.display === '') {
+            detailsDiv.style.display = 'block';
+        } else {
+            detailsDiv.style.display = 'none';
+        }
+    }
+}
+
+// Initialize Bootstrap dropdowns if available
+function initializeBootstrapComponents() {
+    const dropdownElements = document.querySelectorAll('.dropdown-toggle');
+    dropdownElements.forEach(element => {
+        // Check if Bootstrap is available
+        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Dropdown !== 'undefined') {
+            new bootstrap.Dropdown(element);
+        }
+    });
+}
+
+// Initialize Bootstrap dropdowns if available
+document.addEventListener('DOMContentLoaded', function() {
+    initializeBootstrapComponents();
+});
+
+// Auto-refresh functionality
+let refreshInterval = null;
+let currentEditingTaskId = null; // Track the ID of the task currently being edited (only one at a time)
+const REFRESH_INTERVAL_MS = 3000000; // 30 seconds
+
+// Helper function to initialize form handlers (global)
+function initializeFormHandlers() {
+    const addTaskBtn = document.getElementById('add-task-btn');
+    const cancelAddTaskBtn = document.getElementById('cancel-add-task');
+
+    if (addTaskBtn) {
+        addTaskBtn.addEventListener('click', function() {
+            const taskFormContainer = document.getElementById('task-form-container');
+            if (taskFormContainer) {
+                taskFormContainer.style.display = 'block';
+            }
+        });
+    }
+
+    if (cancelAddTaskBtn) {
+        cancelAddTaskBtn.addEventListener('click', function() {
+            const taskFormContainer = document.getElementById('task-form-container');
+            if (taskFormContainer) {
+                taskFormContainer.style.display = 'none';
+            }
+            const taskForm = document.getElementById('task-form');
+            if (taskForm) {
+                taskForm.reset();
+            }
+        });
+    }
+}
+
+// Function to reload the widget content
+function refreshDailyTasks() {
+    // Removed debug console.log
+    
+    // Check if any task is currently being edited
+    if (currentEditingTaskId !== null) {
+        // Removed debug console.log
+        return; // Skip refresh if a task is being edited
+    }
+
+    // Removed debug console.log
+
+    // Show a visual indicator that refresh is happening
+    const header = document.querySelector('.daily-task-header');
+    if (header) {
+        let indicator = header.querySelector('.auto-refresh-indicator');
+        if (!indicator) {
+            indicator = document.createElement('span');
+            indicator.className = 'auto-refresh-indicator';
+            indicator.id = 'refresh-indicator';
+            header.appendChild(indicator);
+        }
+        indicator.textContent = 'Обновление...';
+    }
+
+    // Reload the widget content via AJAX
+    fetch('{% url "home" %}')
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newWidget = doc.querySelector('#daily-task-widget');
+
+            if (newWidget) {
+                const currentWidget = document.getElementById('daily-task-widget');
+
+                // Store the current state of filters BEFORE updating content
+                const activeFilterBtn = document.querySelector('.filter-btn.active');
+                let activeFilter = activeFilterBtn ? activeFilterBtn.getAttribute('data-filter') : null;
+
+                const customDateValue = document.getElementById('custom-date-filter-mobile')?.value || document.getElementById('custom-date-filter-desktop')?.value;
+
+                // Store current mobile dropdown text
+                const currentMobileDropdown = document.getElementById('mobileFilterDropdown');
+                const mobileDropdownText = currentMobileDropdown ? currentMobileDropdown.innerHTML : null;
+
+                // Check if a custom date was selected (not matching preset filters)
+                let isCustomDate = false;
+                if (customDateValue) {
+                    const today = formatDateForInput(new Date());
+                    const yesterday = formatDateForInput(new Date(new Date().setDate(new Date().getDate() - 1)));
+                    const tomorrow = formatDateForInput(new Date(new Date().setDate(new Date().getDate() + 1)));
+
+                    // If no active filter button, but we have a date value that doesn't match today/yesterday/tomorrow, it's custom
+                    if (!activeFilter) {
+                        isCustomDate = (customDateValue !== today && customDateValue !== yesterday && customDateValue !== tomorrow);
+                    } else {
+                        isCustomDate = !['today', 'yesterday', 'tomorrow'].includes(activeFilter) ||
+                                       (customDateValue !== today && customDateValue !== yesterday && customDateValue !== tomorrow);
+                    }
+                }
+
+                // Store the ID of the currently edited task before updating content
+                const currentlyEditingId = currentEditingTaskId;
+                
+                // Store the form visibility state before updating content
+                const taskFormContainer = document.getElementById('task-form-container');
+                // Use getComputedStyle to get the actual display value (not just inline style)
+                const isFormVisible = taskFormContainer && window.getComputedStyle(taskFormContainer).display !== 'none';
+
+                // Update the widget content
+                currentWidget.innerHTML = newWidget.innerHTML;
+
+                // Restore the form visibility state after updating content
+                const restoredFormContainer = document.getElementById('task-form-container');
+                if (restoredFormContainer) {
+                    restoredFormContainer.style.display = isFormVisible ? 'block' : 'none';
+                }
+
+                // Restore the previous filter state AFTER updating content
+                const restoredFilterBtn = document.querySelector(`.filter-btn[data-filter="${activeFilter}"]`);
+                
+                // Remove active class from all buttons first
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+
+                if (restoredFilterBtn) {
+                    // Add active class to restored button
+                    restoredFilterBtn.classList.add('active');
+                }
+
+                // Update mobile dropdown text based on filter type
+                const mobileDropdownButton = document.getElementById('mobileFilterDropdown');
+                
+                // If custom date was selected, show the date instead of button text
+                if (isCustomDate && customDateValue) {
+                    if (mobileDropdownButton) {
+                        const formattedDate = new Date(customDateValue).toLocaleDateString('ru-RU');
+                        mobileDropdownButton.innerHTML = `Дата: ${formattedDate} <span class="caret"></span>`;
+                    }
+                } else if (mobileDropdownButton) {
+                    if (restoredFilterBtn) {
+                        const filterText = restoredFilterBtn.textContent || restoredFilterBtn.innerText;
+                        mobileDropdownButton.innerHTML = filterText + ' <span class="caret"></span>';
+                    } else if (mobileDropdownText) {
+                        mobileDropdownButton.innerHTML = mobileDropdownText;
+                    }
+                }
+
+                // Apply filter based on type
+                if (isCustomDate && customDateValue) {
+                    // Apply custom date filter
+                    applyCustomDateFilter(customDateValue);
+                } else if (['today', 'yesterday', 'tomorrow'].includes(activeFilter)) {
+                    // Apply the date filter for preset filters
+                    let targetDate;
+                    if (activeFilter === 'today') {
+                        targetDate = new Date();
+                    } else if (activeFilter === 'yesterday') {
+                        targetDate = new Date();
+                        targetDate.setDate(targetDate.getDate() - 1);
+                    } else if (activeFilter === 'tomorrow') {
+                        targetDate = new Date();
+                        targetDate.setDate(targetDate.getDate() + 1);
+                    }
+                    applyDateFilter(targetDate);
+
+                    // Update date pickers to match the filter
+                    const dateFilterMobile = document.getElementById('custom-date-filter-mobile');
+                    const dateFilterDesktop = document.getElementById('custom-date-filter-desktop');
+                    const dateString = formatDateForInput(targetDate);
+                    if (dateFilterMobile) dateFilterMobile.value = dateString;
+                    if (dateFilterDesktop) dateFilterDesktop.value = dateString;
+                } else if (['active', 'completed', 'all'].includes(activeFilter)) {
+                    // Apply status filters
+                    const taskItems = document.querySelectorAll('.task-item');
+                    taskItems.forEach(item => {
+                        let showItem = false;
+                        if (activeFilter === 'all') {
+                            showItem = true;
+                        } else if (activeFilter === 'active') {
+                            showItem = item.getAttribute('data-status') === 'active';
+                        } else if (activeFilter === 'completed') {
+                            showItem = item.getAttribute('data-status') === 'completed';
+                        }
+                        item.style.display = showItem ? 'block' : 'none';
+                    });
+
+                    // Clear date pickers for status filters
+                    const dateFilterMobile = document.getElementById('custom-date-filter-mobile');
+                    const dateFilterDesktop = document.getElementById('custom-date-filter-desktop');
+                    if (dateFilterMobile) {
+                        dateFilterMobile.value = '';
+                        dateFilterMobile.classList.add('date-placeholder');
+                    }
+                    if (dateFilterDesktop) {
+                        dateFilterDesktop.value = '';
+                        dateFilterDesktop.classList.add('date-placeholder');
+                    }
+                } else {
+                    // Fallback: apply 'today' filter
+                    applyDateFilter(new Date());
+                    const todayString = formatDateForInput(new Date());
+                    const dateFilterMobile = document.getElementById('custom-date-filter-mobile');
+                    const dateFilterDesktop = document.getElementById('custom-date-filter-desktop');
+                    if (dateFilterMobile) dateFilterMobile.value = todayString;
+                    if (dateFilterDesktop) dateFilterDesktop.value = todayString;
+                }
+
+                // Reinitialize event handlers
+                initializeEventHandlers();
+                
+                // Reinitialize form handlers
+                initializeFormHandlers();
+
+                // If there was a task being edited before the update, restore its editing state
+                if (currentlyEditingId) {
+                    // Removed debug console.log
+                    // Find the task element in the updated DOM
+                    const taskElement = document.querySelector(`[data-task-id="${currentlyEditingId}"]`);
+                    if (taskElement) {
+                        // Removed debug console.log
+                        // Set the editing state for this task
+                        currentEditingTaskId = currentlyEditingId;
+                        
+                        // Show the save button and hide the edit button for this task
+                        const editBtn = taskElement.querySelector('.edit-btn');
+                        const saveBtn = taskElement.querySelector('.save-btn');
+                        
+                        // Removed debug console.log
+                        
+                        if (editBtn) {
+                            editBtn.style.display = 'none';
+                            // Removed debug console.log
+                        }
+                        
+                        if (saveBtn) {
+                            saveBtn.style.display = 'inline-block';
+                            // Removed debug console.log
+                        }
+                        
+                        // Show edit fields and hide display fields for this task
+                        const editDesc = document.getElementById(`edit-desc-${currentlyEditingId}`);
+                        const desc = document.getElementById(`desc-${currentlyEditingId}`);
+                        const editResult = document.getElementById(`edit-result-${currentlyEditingId}`);
+                        const result = document.getElementById(`result-${currentlyEditingId}`);
+                        const editClient = document.getElementById(`edit-client-${currentlyEditingId}`);
+                        const clientName = document.getElementById(`client-name-${currentlyEditingId}`);
+                        const editAssignee = document.getElementById(`edit-assignee-${currentlyEditingId}`);
+                        const assignee = document.getElementById(`assignee-${currentlyEditingId}`);
+                        const taskDateEdit = document.getElementById(`task-date-edit-${currentlyEditingId}`);
+                        const taskDateDisplay = document.getElementById(`task-date-display-${currentlyEditingId}`);
+                        const editPriority = document.getElementById(`edit-priority-${currentlyEditingId}`);
+                        const priorityElement = taskElement.querySelector('.task-priority');
+                        
+                        if (editDesc) {
+                            editDesc.style.display = 'block';
+                            console.log('Edit description field shown');
+                        }
+                        if (desc) {
+                            desc.style.display = 'none';
+                            console.log('Description field hidden');
+                        }
+                        if (editResult) {
+                            editResult.style.display = 'block';
+                            console.log('Edit result field shown');
+                        }
+                        if (result) {
+                            result.style.display = 'none';
+                            console.log('Result field hidden');
+                        }
+                        if (editClient) {
+                            editClient.style.display = 'block';
+                            console.log('Edit client field shown');
+                        }
+                        if (clientName) {
+                            clientName.style.display = 'none';
+                            console.log('Client name field hidden');
+                        }
+                        if (editAssignee) {
+                            editAssignee.style.display = 'inline-block';
+                            console.log('Edit assignee field shown');
+                        }
+                        if (assignee) {
+                            assignee.style.display = 'none';
+                            console.log('Assignee field hidden');
+                        }
+                        if (taskDateEdit) {
+                            taskDateEdit.style.display = 'block';
+                            console.log('Edit date field shown');
+                        }
+                        if (taskDateDisplay) {
+                            taskDateDisplay.style.display = 'none';
+                            console.log('Date display field hidden');
+                        }
+                        if (editPriority) {
+                            editPriority.style.display = 'block';
+                            console.log('Edit priority field shown');
+                        }
+                        if (priorityElement) {
+                            priorityElement.style.display = 'none';
+                            console.log('Priority display field hidden');
+                        }
+                        
+                        // Show a notification to the user
+                        alert('Виджет был обновлён, но задача с ID ' + currentlyEditingId + ' оставалась в режиме редактирования.');
+                    } else {
+                        console.log('Task element with ID', currentlyEditingId, 'not found in updated DOM');
+                    }
+                } else {
+                    console.log('No task was being edited before the update');
+                }
+
+                console.log('Daily tasks refreshed successfully');
+
+                // Update the indicator
+                const indicator = document.getElementById('refresh-indicator');
+                if (indicator) {
+                    indicator.textContent = 'Обновлено';
+                    setTimeout(() => {
+                        if (indicator) {
+                            indicator.textContent = '';
+                        }
+                    }, 2000);
+                }
+            } else {
+                console.error('Could not find daily task widget in the response');
+                
+                // Update the indicator to show error
+                const indicator = document.getElementById('refresh-indicator');
+                if (indicator) {
+                    indicator.textContent = 'Ошибка обновления';
+                    setTimeout(() => {
+                        if (indicator) {
+                            indicator.textContent = '';
+                        }
+                    }, 2000);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing daily tasks:', error);
+
+            // Update the indicator to show error
+            const indicator = document.getElementById('refresh-indicator');
+            if (indicator) {
+                indicator.textContent = 'Ошибка обновления';
+                setTimeout(() => {
+                    if (indicator) {
+                        indicator.textContent = '';
+                    }
+                }, 2000);
+            }
+        });
+}
+
+// Function to initialize all event handlers (needed after refresh)
+function initializeEventHandlers() {
+    console.log('Initializing event handlers...');
+
+    // Task completion toggle
+    document.querySelectorAll('.complete-btn').forEach(button => {
+        // Remove existing listeners to avoid duplicates
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        newButton.addEventListener('click', toggleTaskStatus);
+    });
+
+    // Task editing functionality
+    const editButtons = document.querySelectorAll('.edit-btn');
+    console.log('Found', editButtons.length, 'edit buttons to initialize');
+
+    editButtons.forEach(button => {
+        // Remove existing listeners to avoid duplicates
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        newButton.addEventListener('click', function() {
+            console.log('Edit button clicked, current editing task ID:', currentEditingTaskId);
+            // Get the task ID from the button's data attribute
+            const taskId = this.getAttribute('data-task-id');
+            console.log('Task ID from button:', taskId);
+
+            // If this task is already being edited, don't do anything
+            if (currentEditingTaskId === taskId) {
+                console.log('Task is already being edited, returning');
+                return;
+            }
+
+            // If another task is being edited, show an alert
+            if (currentEditingTaskId !== null) {
+                console.log('Another task is being edited, showing alert');
+                alert('Завершите редактирование задачи с ID ' + currentEditingTaskId + ' перед редактированием другой задачи.');
+                return;
+            }
+
+            console.log('Calling editTask function');
+            // Call the editTask function
+            editTask.call(this);
+        });
+    });
+
+    // Task saving functionality
+    const saveButtons = document.querySelectorAll('.save-btn');
+    console.log('Found', saveButtons.length, 'save buttons to initialize');
+
+    saveButtons.forEach(button => {
+        // Remove existing listeners to avoid duplicates
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        newButton.addEventListener('click', saveTask);
+    });
+
+    // Task deletion
+    document.querySelectorAll('.delete-btn').forEach(button => {
+        // Remove existing listeners to avoid duplicates
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        newButton.addEventListener('click', deleteTask);
+    });
+
+    // Task hiding
+    document.querySelectorAll('.hide-btn').forEach(button => {
+        // Remove existing listeners to avoid duplicates
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        newButton.addEventListener('click', hideTask);
+    });
+
+    // Custom date filter - setup for both mobile and desktop versions
+    const dateFilterMobile = document.getElementById('custom-date-filter-mobile');
+    const dateFilterDesktop = document.getElementById('custom-date-filter-desktop');
+
+    function setupCustomDateFilter(element) {
+        if (element) {
+            // Remove existing listener to avoid duplicates
+            const newElement = element.cloneNode(true);
+            element.parentNode.replaceChild(newElement, element);
+            newElement.addEventListener('change', function() {
+                applyCustomDateFilter(this.value);
+            });
+        }
+    }
+
+    setupCustomDateFilter(dateFilterMobile);
+    setupCustomDateFilter(dateFilterDesktop);
+
+    // Initialize client autocomplete for task creation
+    const clientInput = document.getElementById('task-client');
+    const resultsDiv = document.getElementById('client-list');
+    const hiddenInput = document.getElementById('task-selected-client-id');
+
+    if (clientInput && resultsDiv && hiddenInput) {
+        // Remove existing listener to avoid duplicates
+        const newClientInput = clientInput.cloneNode(true);
+        clientInput.parentNode.replaceChild(newClientInput, clientInput);
+
+        newClientInput.addEventListener('input', debounce(async function() {
+            const query = (this.value || '').trim();
+            const resultsDiv = document.getElementById('client-list');
+            resultsDiv.innerHTML = '';
+            resultsDiv.style.display = 'none';
+
+            if (query.length < 2) return;
+
+            try {
+                const response = await fetch(`/tasks/autocomplete_clients/?q=${encodeURIComponent(query)}`);
+                if (!response.ok) {
+                    console.error('Ошибка поиска клиентов');
+                    return;
+                }
+                const clients = await response.json();
+                if (clients.length === 0) return;
+
+                resultsDiv.innerHTML = clients.map(client =>
+                    `<div onclick="selectClient(${client.id}, '${client.name.replace(/'/g, "\\'")}')">
+                        <strong>${client.name}</strong>
+                        ${client.address ? `<br><small>${client.address}</small>` : ''}
+                    </div>`
+                ).join('');
+
+                resultsDiv.style.display = 'block';
+            } catch (err) {
+                console.error('Ошибка сети:', err);
+            }
+        }, 300));
+    }
+    
+    // Initialize SortableJS for drag-and-drop sorting
+    const taskList = document.getElementById('task-list');
+    if (taskList) {
+        // Clear any existing sortable instance
+        if (taskList.sortableInstance) {
+            taskList.sortableInstance.destroy();
+        }
+        
+        taskList.sortableInstance = new Sortable(taskList, {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            handle: '.drag-handle',
+            onEnd: function(evt) {
+                const taskIds = Array.from(taskList.children).map(child => child.getAttribute('data-task-id'));
+
+                fetch('{% url "tasks:update_task_positions" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ positions: taskIds })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        console.error('Error updating positions:', data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            }
+        });
+    }
+    
+    // Initialize Bootstrap components
+    initializeBootstrapComponents();
+    
+    console.log('Event handlers initialized');
+}
+
+// Define the event handler functions
+function toggleTaskStatus() {
+    const taskId = this.getAttribute('data-task-id');
+
+    fetch(`{% url "tasks:toggle_daily_task_status" task_id=0 %}`.replace('0', taskId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the task status in the UI
+            const taskItem = document.querySelector(`[data-task-id="${taskId}"]`);
+            if (taskItem) {
+                if (data.status === 'completed') {
+                    taskItem.setAttribute('data-status', 'completed');
+                    taskItem.classList.add('completed');
+                } else {
+                    taskItem.setAttribute('data-status', 'active');
+                    taskItem.classList.remove('completed');
+                }
+            }
+
+            // Apply current filter
+            const activeFilter = document.querySelector('.filter-btn.active');
+            if (activeFilter) {
+                const filterType = activeFilter.getAttribute('data-filter');
+                applyFilter(filterType);
+            }
+
+            alert(data.message);
+        } else {
+            alert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Произошла ошибка при обновлении статуса задачи');
+    });
+}
+
+function editTask() {
+    const taskId = this.getAttribute('data-task-id');
+    console.log('Attempting to edit task with ID:', taskId, '. Currently editing task ID:', currentEditingTaskId);
+
+    // Check if another task is already being edited
+    if (currentEditingTaskId !== null && currentEditingTaskId !== taskId) {
+        alert('Завершите редактирование задачи с ID ' + currentEditingTaskId + ' перед редактированием другой задачи.');
+        console.log('Another task is already being edited, aborting edit attempt for task ID:', taskId);
+        return; // Don't allow editing multiple tasks simultaneously
+    }
+
+    // Check if this task is already being edited
+    if (currentEditingTaskId === taskId) {
+        console.log('Task with ID:', taskId, 'is already being edited, aborting duplicate edit attempt');
+        return; // Don't allow editing the same task twice
+    }
+
+    // Set the current task as being edited
+    currentEditingTaskId = taskId;
+    console.log('Set current editing task ID to:', currentEditingTaskId);
+
+    // Show edit fields
+    const editDesc = document.getElementById(`edit-desc-${taskId}`);
+    const desc = document.getElementById(`desc-${taskId}`);
+    const editResult = document.getElementById(`edit-result-${taskId}`);
+    const result = document.getElementById(`result-${taskId}`);
+    const editClient = document.getElementById(`edit-client-${taskId}`);
+    const clientName = document.getElementById(`client-name-${taskId}`);
+    const editAssignee = document.getElementById(`edit-assignee-${taskId}`);
+    const assignee = document.getElementById(`assignee-${taskId}`);
+    const taskDateEdit = document.getElementById(`task-date-edit-${taskId}`);
+    const taskDateDisplay = document.getElementById(`task-date-display-${taskId}`);
+    const editPriority = document.getElementById(`edit-priority-${taskId}`);
+    const priorityElement = document.querySelector(`#task-details-${taskId} .task-priority`);
+    
+    // Find the task element to locate the edit and save buttons
+    const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+    const editBtn = taskElement ? taskElement.querySelector('.edit-btn') : null;
+    const saveBtn = taskElement ? taskElement.querySelector('.save-btn') : null;
+
+    console.log('Edit elements found:', {
+        editDesc: !!editDesc,
+        desc: !!desc,
+        editResult: !!editResult,
+        result: !!result,
+        editClient: !!editClient,
+        clientName: !!clientName,
+        editAssignee: !!editAssignee,
+        assignee: !!assignee,
+        taskDateEdit: !!taskDateEdit,
+        taskDateDisplay: !!taskDateDisplay,
+        editPriority: !!editPriority,
+        priorityElement: !!priorityElement,
+        editBtn: !!editBtn,
+        saveBtn: !!saveBtn
+    });
+
+    // Check if all required elements exist before trying to modify them
+    if (editDesc) {
+        editDesc.style.display = 'block';
+        console.log('Edit description field shown');
+    }
+    if (desc) {
+        desc.style.display = 'none';
+        console.log('Description field hidden');
+    }
+    if (editResult) {
+        editResult.style.display = 'block';
+        console.log('Edit result field shown');
+    }
+    if (result) {
+        result.style.display = 'none';
+        console.log('Result field hidden');
+    }
+    if (editClient) {
+        editClient.style.display = 'block';
+        console.log('Edit client field shown');
+    }
+    if (clientName) {
+        clientName.style.display = 'none';
+        console.log('Client name field hidden');
+    }
+    if (editAssignee) {
+        editAssignee.style.display = 'inline-block';
+        console.log('Edit assignee field shown');
+    }
+    if (assignee) {
+        assignee.style.display = 'none';
+        console.log('Assignee field hidden');
+    }
+    if (taskDateEdit) {
+        taskDateEdit.style.display = 'block';
+        console.log('Edit date field shown');
+    }
+    if (taskDateDisplay) {
+        taskDateDisplay.style.display = 'none';
+        console.log('Date display field hidden');
+    }
+    if (editPriority) {
+        editPriority.style.display = 'block';
+        console.log('Edit priority field shown');
+    }
+    if (priorityElement) {
+        priorityElement.style.display = 'none';
+        console.log('Priority display field hidden');
+    }
+    if (editBtn) {
+        editBtn.style.display = 'none';
+        console.log('Edit button hidden');
+    }
+    if (saveBtn) {
+        saveBtn.style.display = 'inline-block';
+        console.log('Save button shown');
+    }
+}
+
+function saveTask() {
+    const taskId = this.getAttribute('data-task-id');
+
+    const description = document.getElementById(`edit-desc-${taskId}`).value;
+    const result = document.getElementById(`edit-result-${taskId}`).value;
+    const assigneeId = document.getElementById(`edit-assignee-${taskId}`).value;
+    const taskDate = document.getElementById(`task-date-edit-${taskId}`).value;
+    const priorityValue = document.getElementById(`edit-priority-${taskId}`).value;
+
+    // Get client ID from the hidden input
+    const hiddenClientIdInput = document.getElementById(`edit-client-id-${taskId}`);
+    const clientId = hiddenClientIdInput ? hiddenClientIdInput.value : null;
+
+    fetch(`{% url "tasks:update_daily_task" task_id=0 %}`.replace('0', taskId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            description: description,
+            result: result,
+            client_id: clientId,
+            assignee_id: assigneeId,
+            date: taskDate,
+            priority: priorityValue
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the displayed values
+            document.getElementById(`desc-${taskId}`).textContent = description;
+            document.getElementById(`result-${taskId}`).textContent = result;
+
+            // Update client name if available
+            const clientEditInput = document.getElementById(`edit-client-${taskId}`);
+            if (clientEditInput && clientEditInput.value) {
+                // Check if the element has options property (select element) or just use the value
+                if (clientEditInput.options && clientEditInput.selectedIndex >= 0) {
+                    document.getElementById(`client-name-${taskId}`).textContent = clientEditInput.options[clientEditInput.selectedIndex].text;
+                } else {
+                    // For input elements, just use the value
+                    document.getElementById(`client-name-${taskId}`).textContent = clientEditInput.value;
+                }
+            }
+
+            // Update assignee name if available
+            const assigneeEditInput = document.getElementById(`edit-assignee-${taskId}`);
+            if (assigneeEditInput && assigneeEditInput.value && assigneeEditInput.options && assigneeEditInput.selectedIndex >= 0) {
+                const selectedOption = assigneeEditInput.options[assigneeEditInput.selectedIndex];
+                document.getElementById(`assignee-${taskId}`).textContent = selectedOption.text;
+            }
+
+            // Update the displayed date
+            const taskDateInput = document.getElementById(`task-date-edit-${taskId}`);
+            if (taskDateInput && taskDateInput.value) {
+                const selectedDate = new Date(taskDateInput.value);
+                const formattedDate = selectedDate.toLocaleDateString('ru-RU'); // Format as DD.MM.YYYY
+                const taskDateDisplay = document.getElementById(`task-date-display-${taskId}`);
+                if (taskDateDisplay) {
+                    taskDateDisplay.textContent = formattedDate;
+                }
+            }
+
+            // Update the displayed priority
+            const prioritySelect = document.getElementById(`edit-priority-${taskId}`);
+            if (prioritySelect && prioritySelect.value && prioritySelect.options && prioritySelect.selectedIndex >= 0) {
+                const priorityValue = prioritySelect.value;
+                const priorityText = prioritySelect.options[prioritySelect.selectedIndex].text;
+                const priorityElement = document.querySelector(`#task-details-${taskId} .task-priority`);
+                if (priorityElement) {
+                    priorityElement.textContent = `{% trans 'Приоритет' %}: ${priorityText}`;
+                    // Update the CSS class based on priority
+                    priorityElement.className = 'task-priority priority-' + priorityValue;
+                }
+            }
+
+            // Hide edit fields, show display fields
+            document.getElementById(`edit-desc-${taskId}`).style.display = 'none';
+            document.getElementById(`desc-${taskId}`).style.display = 'block';
+
+            document.getElementById(`edit-result-${taskId}`).style.display = 'none';
+            document.getElementById(`result-${taskId}`).style.display = 'block';
+
+            document.getElementById(`edit-client-${taskId}`).style.display = 'none';
+            document.getElementById(`client-name-${taskId}`).style.display = 'inline';
+
+            document.getElementById(`edit-assignee-${taskId}`).style.display = 'none';
+            document.getElementById(`assignee-${taskId}`).style.display = 'inline';
+
+            // Hide date edit field (located in task details section)
+            document.getElementById(`task-date-edit-${taskId}`).style.display = 'none';
+            const taskDateDisplay = document.getElementById(`task-date-display-${taskId}`);
+            if (taskDateDisplay) {
+                taskDateDisplay.style.display = 'inline';
+            }
+
+            document.getElementById(`edit-priority-${taskId}`).style.display = 'none';
+            document.querySelector(`#task-details-${taskId} .task-priority`).style.display = 'inline';
+
+            // Show edit button, hide save button
+            const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+            const editBtn = taskElement ? taskElement.querySelector('.edit-btn') : null;
+            const saveBtn = taskElement ? taskElement.querySelector('.save-btn') : null;
+
+            if (editBtn) editBtn.style.display = 'inline-block';
+            if (saveBtn) saveBtn.style.display = 'none';
+
+            console.log('Before saving, current editing task ID was:', currentEditingTaskId);
+            // Reset the current editing task ID
+            currentEditingTaskId = null;
+            console.log('After saving, current editing task ID is now:', currentEditingTaskId);
+
+            alert(data.message);
+        } else {
+            alert('Ошибка: ' + data.error);
+
+            console.log('Before error handling, current editing task ID was:', currentEditingTaskId);
+            // Even if there was an error, we should reset the editing task ID
+            currentEditingTaskId = null;
+            console.log('After error handling, current editing task ID is now:', currentEditingTaskId);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Произошла ошибка при сохранении задачи');
+
+        console.log('In catch block, current editing task ID was:', currentEditingTaskId);
+        // Even if there was an error, we should reset the editing task ID
+        currentEditingTaskId = null;
+        console.log('After catch block, current editing task ID is now:', currentEditingTaskId);
+    });
+}
+
+function deleteTask() {
+    if (!confirm('Вы уверены, что хотите удалить эту задачу?')) {
+        return;
+    }
+    
+    const taskId = this.getAttribute('data-task-id');
+
+    fetch(`{% url "tasks:delete_daily_task" task_id=0 %}`.replace('0', taskId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.querySelector(`[data-task-id="${taskId}"]`).remove();
+            alert(data.message);
+        } else {
+            alert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Произошла ошибка при удалении задачи');
+    });
+}
+
+function hideTask() {
+    const taskId = this.getAttribute('data-task-id');
+
+    fetch(`{% url "tasks:hide_daily_task" task_id=0 %}`.replace('0', taskId), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.querySelector(`[data-task-id="${taskId}"]`).classList.add('hidden');
+            alert(data.message);
+        } else {
+            alert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Произошла ошибка при скрытии задачи');
+    });
+}
+
+
+function applyFilter(filter) {
+    const taskItems = document.querySelectorAll('.task-item');
+    const customDateFilterMobile = document.getElementById('custom-date-filter-mobile');
+    const customDateFilterDesktop = document.getElementById('custom-date-filter-desktop');
+
+    // Debug logging to see what tasks are available
+    console.log(`Applying filter: ${filter}`);
+    console.log(`Found ${taskItems.length} task items`);
+
+    taskItems.forEach(item => {
+        const taskId = item.getAttribute('data-task-id');
+        const taskStatus = item.getAttribute('data-status');
+        const taskDateElement = item.querySelector('.task-date');
+        const taskDateText = taskDateElement ? taskDateElement.textContent.trim() : 'N/A';
+
+        console.log(`Task ID: ${taskId}, Status: ${taskStatus}, Date: ${taskDateText}`);
+    });
+
+    taskItems.forEach(item => {
+        let showItem = false;
+
+        switch(filter) {
+            case 'all':
+                showItem = true;
+                // Clear date pickers for status filters
+                if (customDateFilterMobile) {
+                    customDateFilterMobile.value = '';
+                    customDateFilterMobile.classList.add('date-placeholder');
+                }
+                if (customDateFilterDesktop) {
+                    customDateFilterDesktop.value = '';
+                    customDateFilterDesktop.classList.add('date-placeholder');
+                }
+                break;
+            case 'active':
+                showItem = item.getAttribute('data-status') === 'active';
+                // Clear date pickers for status filters
+                if (customDateFilterMobile) {
+                    customDateFilterMobile.value = '';
+                    customDateFilterMobile.classList.add('date-placeholder');
+                }
+                if (customDateFilterDesktop) {
+                    customDateFilterDesktop.value = '';
+                    customDateFilterDesktop.classList.add('date-placeholder');
+                }
+                break;
+            case 'completed':
+                showItem = item.getAttribute('data-status') === 'completed';
+                // Clear date pickers for status filters
+                if (customDateFilterMobile) {
+                    customDateFilterMobile.value = '';
+                    customDateFilterMobile.classList.add('date-placeholder');
+                }
+                if (customDateFilterDesktop) {
+                    customDateFilterDesktop.value = '';
+                    customDateFilterDesktop.classList.add('date-placeholder');
+                }
+                break;
+            case 'today':
+                const today = new Date();
+                // Update date pickers to today
+                const todayString = formatDateForInput(today);
+                if (customDateFilterMobile) customDateFilterMobile.value = todayString;
+                if (customDateFilterDesktop) customDateFilterDesktop.value = todayString;
+                applyDateFilter(today);
+                return; // Already applied
+            case 'yesterday':
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                // Update date pickers to yesterday
+                const yesterdayString = formatDateForInput(yesterday);
+                if (customDateFilterMobile) customDateFilterMobile.value = yesterdayString;
+                if (customDateFilterDesktop) customDateFilterDesktop.value = yesterdayString;
+                applyDateFilter(yesterday);
+                return; // Already applied
+            case 'tomorrow':
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                // Update date pickers to tomorrow
+                const tomorrowString = formatDateForInput(tomorrow);
+                if (customDateFilterMobile) customDateFilterMobile.value = tomorrowString;
+                if (customDateFilterDesktop) customDateFilterDesktop.value = tomorrowString;
+                applyDateFilter(tomorrow);
+                return; // Already applied
+        }
+
+        item.style.display = showItem ? 'block' : 'none';
+
+        // Log the result of filtering
+        const taskId = item.getAttribute('data-task-id');
+        console.log(`Task ID: ${taskId}, Filter: ${filter}, Show: ${showItem}`);
+    });
+}
+
+// Event delegation for filter buttons (global, added once)
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('filter-btn')) {
+        // Prevent dropdown from closing immediately on mobile
+        e.stopPropagation();
+
+        // Remove active class from all buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // Add active class to clicked button
+        e.target.classList.add('active');
+
+        // Update the mobile dropdown button text to match the selected filter
+        const filterText = e.target.textContent || e.target.innerText;
+        const mobileDropdownButton = document.getElementById('mobileFilterDropdown');
+        if (mobileDropdownButton) {
+            mobileDropdownButton.innerHTML = filterText + ' <span class="caret"></span>';
+        }
+
+        // Remove active date filter highlight
+        const dateFilterInput = document.querySelector('#custom-date-filter-desktop, #custom-date-filter-mobile');
+        if (dateFilterInput) {
+            dateFilterInput.classList.remove('active-date-filter');
+        }
+
+        const filter = e.target.getAttribute('data-filter');
+        const dateFilterMobile = document.getElementById('custom-date-filter-mobile');
+        const dateFilterDesktop = document.getElementById('custom-date-filter-desktop');
+
+        // For status filters, clear the date field
+        if (['all', 'active', 'completed'].includes(filter)) {
+            if (dateFilterMobile) {
+                dateFilterMobile.value = '';
+                dateFilterMobile.classList.add('date-placeholder');
+            }
+            if (dateFilterDesktop) {
+                dateFilterDesktop.value = '';
+                dateFilterDesktop.classList.add('date-placeholder');
+            }
+        } else {
+            // Remove placeholder class for date filters
+            if (dateFilterMobile) {
+                dateFilterMobile.classList.remove('date-placeholder');
+            }
+            if (dateFilterDesktop) {
+                dateFilterDesktop.classList.remove('date-placeholder');
+            }
+        }
+
+        applyFilter(filter);
+
+        // Close the dropdown menu after selection on mobile
+        const dropdownMenu = e.target.closest('.dropdown-menu');
+        if (dropdownMenu) {
+            const dropdownToggle = document.querySelector('#mobileFilterDropdown');
+            if (dropdownToggle) {
+                // Remove the 'show' class to close the dropdown
+                dropdownMenu.parentElement.classList.remove('show');
+                dropdownMenu.setAttribute('aria-expanded', 'false');
+            }
+        }
+    }
+});
+
+// Start the auto-refresh interval
+refreshInterval = setInterval(refreshDailyTasks, REFRESH_INTERVAL_MS);
+
+// Allow manual refresh
+document.addEventListener('keydown', function(event) {
+    // Press 'R' key to manually refresh
+    if (event.key.toLowerCase() === 'r' && event.ctrlKey) {
+        refreshDailyTasks();
+    }
+});
+</script>

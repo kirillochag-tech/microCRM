@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>{% trans 'Все объявления' %}</h2>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-12">
+            {% if announcements %}
+                {% for announcement in announcements %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ announcement.title }}</h5>
+                            <p class="card-text">{{ announcement.content }}</p>
+                            <small class="text-muted">
+                                {% trans 'Автор:' %} {{ announcement.author.get_full_name|default:announcement.author.username }}<br>
+                                {% trans 'Дата:' %} {{ announcement.created_at|date:"d.m.Y H:i" }}
+                            </small>
+                            {% if announcement.requires_acknowledgment %}
+                                <div class="mt-2">
+                                    {% if announcement.is_acknowledged %}
+                                        <span class="badge bg-success">{% trans 'Подтверждено' %}</span>
+                                    {% elif not announcement.is_acknowledged %}
+                                        <form method="post" action="{% url 'announcements:mark_read' announcement.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="acknowledge" value="true">
+                                            <button type="submit" class="btn btn-sm btn-warning">{% trans 'Я ознакомлен!' %}</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">{% trans 'Нет объявлений' %}</p>
+            {% endif %}
+        </div>
+    </div>
+    <div class="text-center mt-3">
+        <a href="{% url 'home' %}" class="btn btn-sm btn-outline-secondary me-2">{% trans 'Назад на главную' %}</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const acknowledgeForms = document.querySelectorAll('.acknowledge-form');
+        acknowledgeForms.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(form);
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', form.action);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.status === 'success') {
+                            // For all.html page
+                            form.style.display = 'none';
+                            const successBadge = document.createElement('span');
+                            successBadge.className = 'badge bg-success ms-2';
+                            successBadge.textContent = '{% trans "Подтверждено" %}';
+                            form.parentNode.insertBefore(successBadge, form);
+                            // Optionally show a toast message
+                            // alert(response.message);
+                        }
+                    } else {
+                        alert('Ошибка при подтверждении прочтения.');
+                    }
+                };
+                for (let [key, value] of formData.entries()) {
+                    xhr.setRequestHeader('X-CSRFToken', value);
+                    break; // We only need the first CSRF token
+                }
+                xhr.send(formData);
+            });
+        });
+    });
+</script>
+{% endblock %}

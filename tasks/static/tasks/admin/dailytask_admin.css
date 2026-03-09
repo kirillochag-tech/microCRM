@@ -1,0 +1,606 @@
+/* Стили для страницы "Задача дня" в админке */
+
+/* Основной контейнер */
+#changelist {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+}
+
+/* Блок с результатами (таблица) */
+#changelist .results {
+    flex: 1;
+    min-width: 0;
+    display: none; /* Скрыто по умолчанию, показываем только при переключении */
+}
+
+/* Блок с карточками */
+#task-cards-container {
+    display: block;
+}
+
+/* Фильтр справа */
+#changelist-filter {
+    flex: 0 0 240px;
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 15px;
+    order: 2;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+#changelist-filter h2 {
+    font-size: 13px;
+    font-weight: bold;
+    color: #333;
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #007bff;
+    text-transform: uppercase;
+}
+
+#changelist-filter details {
+    margin-bottom: 10px;
+}
+
+#changelist-filter summary {
+    font-size: 12px;
+    font-weight: bold;
+    color: #555;
+    cursor: pointer;
+    padding: 5px 0;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#changelist-filter summary::-webkit-details-marker {
+    display: none;
+}
+
+#changelist-filter summary::before {
+    content: '▶';
+    font-size: 8px;
+    transition: transform 0.2s;
+    color: #007bff;
+}
+
+#changelist-filter details[open] summary::before {
+    transform: rotate(90deg);
+}
+
+#changelist-filter h3 {
+    font-size: 12px;
+    font-weight: bold;
+    color: #555;
+    margin: 15px 0 8px 0;
+    padding: 0;
+}
+
+#changelist-filter ul {
+    margin: 0;
+    padding: 0 0 0 12px;
+    list-style: none;
+}
+
+#changelist-filter li {
+    margin: 4px 0;
+    padding: 0;
+}
+
+#changelist-filter a {
+    color: #333;
+    text-decoration: none;
+    font-size: 12px;
+    display: block;
+    padding: 4px 8px;
+    border-radius: 3px;
+    transition: background-color 0.2s;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+#changelist-filter a:hover {
+    background-color: #e9ecef;
+    color: #007bff;
+}
+
+#changelist-filter .selected {
+    background-color: #007bff !important;
+    border-radius: 3px;
+}
+
+#changelist-filter .selected a {
+    color: #ffffff !important;
+    font-weight: bold;
+    background-color: transparent;
+}
+
+#changelist-filter .selected a:hover {
+    color: #ffffff !important;
+}
+
+/* Поиск */
+#toolbar {
+    margin-bottom: 10px;
+}
+
+#toolbar #changelist-search > div {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+
+#toolbar #searchbar {
+    min-width: 150px;
+}
+
+#toolbar #searchbar input[type="text"] {
+    width: 200px;
+    padding: 5px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 11px;
+    box-sizing: border-box;
+    height: 26px;
+}
+
+#toolbar #searchbar input[type="submit"] {
+    padding: 5px 10px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    height: 26px;
+}
+
+/* Разделитель между поиском и фильтрами */
+.filter-separator {
+    display: inline-block;
+    width: 1px;
+    height: 24px;
+    background: #ccc;
+    margin: 0 5px;
+}
+
+/* Дополнительные фильтры (дата и сотрудник) */
+#toolbar label[for="id_date_filter"],
+#toolbar label[for="id_employee_filter"] {
+    font-size: 10px;
+    font-weight: bold;
+    color: #555;
+    white-space: nowrap;
+    margin: 0;
+}
+
+#toolbar input[type="date"],
+#toolbar select {
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 10px;
+    background: white;
+    height: 24px;
+}
+
+#toolbar input[type="date"] {
+    min-width: 110px;
+}
+
+#toolbar select {
+    min-width: 130px;
+}
+
+#toolbar .filter-btn {
+    padding: 4px 8px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    height: 24px;
+    min-width: 24px;
+}
+
+#toolbar .filter-btn:hover {
+    background: #218838;
+}
+
+#toolbar .clear-filters {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 24px;
+    background: #dc3545;
+    color: white;
+    border-radius: 3px;
+    text-decoration: none;
+    font-size: 12px;
+    line-height: 1;
+}
+
+#toolbar .clear-filters:hover {
+    background: #c82333;
+}
+
+/* Кнопка группировки */
+#toolbar .group-btn {
+    font-size: 16px;
+    min-width: 32px;
+}
+
+/* Группировка задач по сотрудникам */
+.employee-group {
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.employee-group .group-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 15px;
+    background: #f8f9fa;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 2px solid #007bff;
+}
+
+.employee-group .group-header:hover {
+    background: #e9ecef;
+}
+
+.employee-group .group-header.expanded {
+    background: #007bff;
+    color: white;
+}
+
+.employee-group .group-header.expanded .group-name,
+.employee-group .group-header.expanded .group-count {
+    color: white;
+}
+
+.employee-group .group-toggle-icon {
+    font-size: 12px;
+    transition: transform 0.2s;
+    color: #007bff;
+    min-width: 12px;
+}
+
+.employee-group .group-header.expanded .group-toggle-icon {
+    color: white;
+}
+
+.employee-group .group-name {
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+}
+
+.employee-group .group-count {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.employee-group .group-tasks {
+    padding: 10px 15px;
+}
+
+.employee-group .group-tasks.collapsed {
+    display: none;
+}
+
+.employee-group .task-card {
+    margin-bottom: 10px;
+}
+
+.employee-group .task-card:last-child {
+    margin-bottom: 0;
+}
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 768px) {
+    #toolbar {
+        flex-direction: column;
+    }
+    
+    #additional-filters {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+    
+    #additional-filters .filter-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    #additional-filters input[type="date"],
+    #additional-filters select {
+        width: 100%;
+    }
+}
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 768px) {
+    #changelist {
+        flex-direction: column;
+    }
+    
+    #changelist-filter {
+        order: 1;
+        flex: none;
+        width: 100%;
+        max-height: none;
+    }
+}
+
+/* Стили для карточек задач */
+.task-cards-container {
+    margin-top: 10px;
+}
+
+.task-card {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: box-shadow 0.2s ease;
+}
+
+.task-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.task-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    cursor: pointer;
+    background: #f8f9fa;
+    border-radius: 6px 6px 0 0;
+}
+
+.task-card-header:hover {
+    background: #e9ecef;
+}
+
+.task-card-header h4 {
+    margin: 0;
+    font-size: 14px;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.task-card-header .task-date {
+    font-weight: bold;
+    color: #007cba;
+}
+
+.task-card-header .task-client {
+    color: #6c757d;
+}
+
+.task-card-header .task-assignee {
+    color: #28a745;
+}
+
+.task-card-header .task-status {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.task-card-header .task-status.active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.task-card-header .task-status.completed {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+.task-card-header .task-status.hidden {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.task-card-header .task-priority {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.task-card-header .task-priority.priority-1 {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.task-card-header .task-priority.priority-2 {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.task-card-header .task-priority.priority-3 {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.task-card-header .toggle-icon {
+    margin-left: 10px;
+    font-size: 16px;
+    transition: transform 0.3s ease;
+}
+
+.task-card-header.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.task-card-body {
+    padding: 15px;
+    border-top: 1px solid #ddd;
+}
+
+.task-card-body.collapsed {
+    display: none;
+}
+
+.task-detail-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.task-detail-item {
+    flex: 1;
+    min-width: 150px;
+}
+
+.task-detail-item label {
+    font-weight: bold;
+    color: #6c757d;
+    font-size: 12px;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.task-detail-item .value {
+    color: #333;
+    font-size: 14px;
+}
+
+.task-description {
+    margin-top: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #495057;
+}
+
+.task-result {
+    margin-top: 10px;
+    padding: 10px;
+    background: #e8f5e8;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #155724;
+}
+
+.task-actions {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #ddd;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.task-actions label {
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.task-actions select {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.task-actions button {
+    padding: 6px 12px;
+    background: #007cba;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.task-actions button:hover {
+    background: #005a8b;
+}
+
+.task-actions button.save-success {
+    background: #28a745;
+}
+
+.task-actions button.save-error {
+    background: #dc3545;
+}
+
+.expand-all-btn {
+    margin-bottom: 10px;
+    padding: 8px 16px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.expand-all-btn:hover {
+    background: #5a6268;
+}
+
+/* Card view toggle */
+.view-toggle {
+    margin-bottom: 10px;
+    display: flex;
+    gap: 10px;
+}
+
+.view-toggle button {
+    padding: 8px 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.view-toggle button.active {
+    background: #007cba;
+    color: white;
+    border-color: #007cba;
+}
+
+/* Стили для заголовков таблицы */
+#changelist table thead th {
+    background: #f5f5f5;
+    border-bottom: 2px solid #ddd;
+    padding: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+}
+
+#changelist table tbody td {
+    padding: 10px;
+    font-size: 13px;
+    border-bottom: 1px solid #eee;
+}

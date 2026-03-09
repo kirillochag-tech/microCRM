@@ -1,0 +1,79 @@
+/* Улучшенная визуальная иерархия для анкет в админке */
+
+/* === Вопрос — выделяем как основной блок === */
+.inline-group .nested-inline-item.SurveyQuestionInline {
+    border: 1px solid #ddd !important;
+    border-radius: 6px !important;
+    padding: 16px !important;
+    margin: 0 0 20px 0 !important;
+    background-color: #f8fafc !important;
+    position: relative;
+}
+
+/* Заголовок вопроса — яркая, но сдержанная полоса */
+.inline-group .SurveyQuestionInline h3.inline-head {
+    background-color: #e0f2fe !important;
+    color: #0369a1 !important;
+    padding: 10px 12px !important;
+    margin: -16px -16px 16px -16px !important;
+    border-bottom: 1px solid #bae6fd !important;
+    font-weight: 600 !important;
+    font-size: 15px !important;
+}
+
+/* === СКРЫВАЕМ заголовок у вариантов ответов === */
+/* Это ключевое правило — убирает "яркую полосу" над ответами */
+.inline-group .SurveyQuestionChoiceInline h3.inline-head {
+    display: none !important;
+}
+
+/* Контейнер вариантов ответов — внутри вопроса */
+.inline-group .SurveyQuestionChoiceInline .tabular.inline-related {
+    margin-top: 12px !important;
+    padding-top: 12px !important;
+    border-top: 1px dashed #cbd5e1 !important;
+}
+
+/* Убираем лишние отступы и фоны у таблицы */
+.SurveyQuestionChoiceInline table {
+    background: transparent !important;
+}
+.SurveyQuestionChoiceInline .tabular {
+    background: transparent !important;
+}
+
+/* Drag-handle — делаем менее навязчивым */
+.drag-handle {
+    opacity: 0.4 !important;
+}
+.drag-handle:hover {
+    opacity: 1 !important;
+}
+
+/* Make FilteredSelectMultiple fields wider */
+.selector {
+    width: 50em !important;
+}
+
+.selector select {
+    width: 100% !important;
+}
+
+.selector-available, .selector-chosen {
+    width: 22em !important;
+}
+
+/* Ensure proper spacing */
+.selector-available, .selector-chosen {
+    min-width: 22em !important;
+    max-width: 22em !important;
+}
+
+/* Ensure the fieldset is collapsible */
+.fieldset-collapsed {
+    display: none;
+}
+
+.fieldset-collapsed + .fieldset-content {
+    display: none;
+}

@@ -1,0 +1,13 @@
+# Config files
+config/app_config.ini
+(empty)
+*.pyc
+/media/photo_reports
+/media/*.jpg
+/media/*.jpeg
+/media/*.png
+/media/*.gif
+/media/*.webp
+/media
+"db.sqlite3"
+"db.sqlite3"

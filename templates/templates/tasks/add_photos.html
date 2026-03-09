@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>{% trans 'Добавить фото' %}</h2>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">{{ answer.question.question_text }}</h5>
+                    <small class="text-muted">
+                        {% trans 'Текущее количество фото:' %} {{ current_photo_count }} 
+                        {% trans 'Осталось мест:' %} {{ remaining_photos }}
+                    </small>
+                </div>
+                <div class="card-body">
+                    {% if remaining_photos > 0 %}
+                        <form method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label class="form-label">{{ form.photos.label }}</label>
+                                {{ form.photos }}
+                                <div class="form-text">{{ form.photos.help_text }}</div>
+                                {% if form.photos.errors %}
+                                    <div class="text-danger">{{ form.photos.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <button type="submit" class="btn btn-primary">{% trans 'Добавить фото' %}</button>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            {% trans 'Достигнуто максимальное количество фото (10).' %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <a href="{% url 'tasks:survey_results' answer.question.task.id %}" class="btn btn-secondary">{% trans 'Назад к результатам' %}</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

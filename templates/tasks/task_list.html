@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block content %}
+<style>
+    .status-column-fit {
+        width: fit-content;
+        white-space: nowrap;
+    }
+    .task-card {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: box-shadow 0.2s ease-in-out;
+    }
+    .task-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    .task-title {
+        font-weight: bold;
+        font-size: 1.1em;
+        margin-bottom: 8px;
+    }
+    .task-type-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.85em;
+        font-weight: bold;
+        margin-right: 8px;
+    }
+    .task-type-survey { background-color: #e3f2fd; color: #1976d2; }
+    .task-type-photo { background-color: #f3e5f5; color: #7b1fa2; }
+    .task-type-default { background-color: #e8f5e9; color: #388e3c; }
+    .btn-primary { background-color: #007bff; border-color: #007bff; }
+    .btn-success { background-color: #28a745; border-color: #28a745; }
+    .btn-danger { background-color: #dc3545; border-color: #dc3545; }
+    .status-text { color: #6c757d; }
+</style>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>{% trans 'Список задач' %}</h2>
+            <p>{% trans 'Все ваши активные задачи' %}</p>
+            
+            {% if tasks %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>{% trans 'Название' %}</th>
+                                <th>{% trans 'Тип' %}</th>
+                                <th>{% trans 'Клиент' %}</th>
+                                <th>{% trans 'Дата создания' %}</th>
+                                <th>{% trans 'Действия' %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in tasks %}
+                                <tr>
+                                    <td>
+                                        <div class="task-title">
+                                            {{ task.title }}
+                                        </div>
+                                        {% if task.task_type == 'SURVEY' %}
+                                            <small class="text-muted">
+                                            {{ task.current_count }} из {{ task.target_count }}
+                                            {% if task.target_count > 0 %}
+                                            ({{ task.get_completion_percentage }}%)
+                                            {% endif %}
+                                            </small>
+                                            {% if task.target_count > 0 %}
+                                                <div class="progress" style="height: 5px; margin-top: 3px;">
+                                                    <div class="progress-bar bg-success" role="progressbar" 
+                                                         style="width: {{ task.get_completion_percentage }}%" 
+                                                         aria-valuenow="{{ task.get_completion_percentage }}" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                        {% elif task.task_type == 'EQUIPMENT_PHOTO' or task.task_type == 'SIMPLE_PHOTO' %}
+                                            {% if task.total_clients and task.total_clients > 0 %}
+                                                <br>
+                                                <small class="text-muted">
+                                                    {{ task.submitted_clients }} из {{ task.total_clients }}
+                                                    ({{ task.get_photo_completion_percentage }}%)
+                                                </small>
+                                                <div class="progress" style="height: 5px; margin-top: 3px;">
+                                                    <div class="progress-bar bg-info" role="progressbar" 
+                                                         style="width: {{ task.get_photo_completion_percentage }}%" 
+                                                         aria-valuenow="{{ task.get_photo_completion_percentage }}" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <!-- Иконки и бейджи -->
+                                        {% if task.task_type == 'SURVEY' %}
+                                            <span class="task-type-badge task-type-survey">📝 Анкета</span>
+                                        {% elif task.task_type == 'EQUIPMENT_PHOTO' or task.task_type == 'SIMPLE_PHOTO' %}
+                                            <span class="task-type-badge task-type-photo">📸 Фотоотчёт</span>
+                                        {% else %}
+                                            <span class="task-type-badge task-type-default">✅ Задача</span>
+                                        {% endif %}
+                                        <br>
+                                        <small class="status-text">
+                                            {{ task.get_status_display }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if task.client_display_type == 'all_clients' %}
+                                            <span class="text-muted">Все клиенты</span>
+                                        {% elif task.client_display_type == 'single_client' %}
+                                            {{ task.display_client_name }}
+                                        {% elif task.client_display_type == 'multiple_clients' %}
+                                            <span class="text-muted">Клиентов: {{ task.display_client_count }}</span>
+                                        {% else %}
+                                            <span class="text-muted">Не назначен</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ task.created_at|date:"d.m.Y H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'tasks:task_detail' task.pk %}" class="btn btn-sm btn-primary">{% trans 'Просмотреть' %}</a>
+                                        {% if user.role == 'EMPLOYEE' %}
+                                            {% if task.task_type == 'SURVEY' %}
+                                                {% if task.status == 'COMPLETED' %}
+                                                    <button type="button" class="btn btn-sm btn-secondary" disabled>{% trans 'Завершена' %}</button>
+                                                {% elif task.status != 'COMPLETED' and task.is_active %}
+                                                    <a href="{% url 'tasks:survey_response' task.pk %}" class="btn btn-sm btn-success">{% trans 'Заполнить' %}</a>
+                                                {% elif not task.is_active %}
+                                                    <button type="button" class="btn btn-sm btn-secondary" disabled>{% trans 'Неактивна' %}</button>
+                                                {% else %}
+                                                    <button type="button" class="btn btn-sm btn-secondary" disabled>{% trans 'Недоступна' %}</button>
+                                                {% endif %}
+                                            {% else %}
+                                                {% if task.task_type == 'EQUIPMENT_PHOTO' or task.task_type == 'SIMPLE_PHOTO' %}
+                                                    {% if task.status != 'COMPLETED' and task.is_active %}
+                                                        <a href="{% url 'tasks:photo_report' task.pk %}" class="btn btn-sm btn-success">{% trans 'Заполнить' %}</a>
+                                                    {% elif task.status == 'COMPLETED' %}
+                                                        <button type="button" class="btn btn-sm btn-secondary" disabled>{% trans 'Завершена' %}</button>
+                                                    {% elif not task.is_active %}
+                                                        <button type="button" class="btn btn-sm btn-secondary" disabled>{% trans 'Неактивна' %}</button>
+                                                    {% else %}
+                                                        <button type="button" class="btn btn-sm btn-secondary" disabled>{% trans 'Недоступна' %}</button>
+                                                    {% endif %}
+                                                {% else %}
+                                                    {% if task.status != 'COMPLETED' %}
+                                                        <a href="#" class="btn btn-sm btn-success">{% trans 'Выполнить' %}</a>
+                                                    {% else %}
+                                                        <button type="button" class="btn btn-sm btn-secondary" disabled>{% trans 'Завершено' %}</button>
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                {% if is_paginated %}
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item"><a class="page-link" href="?page=1">&laquo;</a></li>
+                                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&lt;</a></li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% else %}
+                                    <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&gt;</a></li>
+                                <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">&raquo;</a></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-info">
+                    {% trans 'У вас нет активных задач.' %}
+                </div>
+            {% endif %}
+            
+            <a href="{% url 'home' %}" class="btn btn-secondary">{% trans 'Назад на главную' %}</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
