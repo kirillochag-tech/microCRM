@@ -3,8 +3,6 @@
 Management command to import clients from Excel file with 1C code update.
 """
 
-import sys
-import io
 from django.core.management.base import BaseCommand
 from openpyxl import load_workbook
 from clients.models import Client
@@ -18,29 +16,19 @@ class Command(BaseCommand):
         parser.add_argument('--test', action='store_true', help='Тестовый режим (без сохранения)')
 
     def handle(self, *args, **options):
-        # Fix Windows console encoding
-        if sys.platform == 'win32':
-            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-
         file_path = options.get('file', 'Клиенты выгрузка.xlsx')
         test_mode = options.get('test', False)
-
-        self.stdout.write(f'=== ИМПОРТ КЛИЕНТОВ ИЗ {file_path} ===')
-        if test_mode:
-            self.stdout.write('!!! ТЕСТОВЫЙ РЕЖИМ (без сохранения) !!!\n')
 
         # Load the file
         wb = load_workbook(file_path)
         ws = wb.active
 
-        # Get headers
-        headers = [cell.value for cell in ws[1]]
-        self.stdout.write(f'Заголовки: {headers}\n')
-
         # Statistics
         updated = 0
         not_found = 0
         total = 0
+        updated_list = []
+        not_found_list = []
 
         # Process rows
         for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), 2):
@@ -52,19 +40,14 @@ class Command(BaseCommand):
 
             total += 1
             instance = None
-            found_by = None
 
             # Step 1: Try to find by code_1c
             if code_1c:
                 instance = Client.objects.filter(code_1c=code_1c).first()
-                if instance:
-                    found_by = 'code_1c'
 
             # Step 2: If not found, try to find by name
             if not instance and name:
                 instance = Client.objects.filter(name=name).first()
-                if instance:
-                    found_by = 'name'
 
             # Step 3: Update if found
             if instance:
@@ -74,23 +57,64 @@ class Command(BaseCommand):
                 if not test_mode:
                     instance.save()
                 
-                status = 'обновлен' if old_code != code_1c else 'без изменений'
-                if total <= 10 or not_found < 5:  # Show first 10 and first 5 not found
-                    self.stdout.write(f"  [{row_idx}] {found_by}: ID={instance.id} | {name[:50]}... | code_1c: {old_code} -> {code_1c} [{status}]")
+                status = 'updated' if old_code != code_1c else 'unchanged'
+                updated_list.append({
+                    'row': row_idx,
+                    'id': instance.id,
+                    'name': name[:50],
+                    'old_code': old_code,
+                    'new_code': code_1c,
+                    'status': status
+                })
                 updated += 1
             else:
-                if not_found < 10:  # Show first 10 not found
-                    self.stdout.write(f'  [{row_idx}] НЕ НАЙДЕН: {name[:50]}... (code_1c={code_1c})')
+                not_found_list.append({
+                    'row': row_idx,
+                    'name': name[:50],
+                    'code_1c': code_1c
+                })
                 not_found += 1
 
-            if total == 10:
-                self.stdout.write('  ... (пропуск вывода) ...\n')
-
-        self.stdout.write(f'\n=== ИТОГИ ===')
-        self.stdout.write(f'Всего строк: {total}')
-        self.stdout.write(f'Обновлено: {updated}')
-        self.stdout.write(f'Не найдено: {not_found}')
-        
+        # Print results - simple format for Windows compatibility
+        print('=' * 70)
+        print('         IMPORT CLIENTS FROM 1C (Excel)')
+        print('=' * 70)
+        print(f'File: {file_path}')
         if test_mode:
-            self.stdout.write('\n!!! ТЕСТОВЫЙ РЕЖИМ - изменения не сохранены !!!')
-            self.stdout.write('Для реального импорта запустите без --test')
+            print('*** TEST MODE - NO CHANGES SAVED ***')
+        print()
+        print('SUMMARY:')
+        print(f'  Total rows processed: {total}')
+        print(f'  Clients updated:      {updated}')
+        print(f'  Not found in DB:      {not_found}')
+        print()
+
+        if updated > 0:
+            print('UPDATED CLIENTS (first 20):')
+            print(f'{"Row":<6} {"ID":<6} {"Name":<50} {"code_1c":<12}')
+            print('-' * 70)
+            for item in updated_list[:20]:
+                icon = '+' if item['status'] == 'updated' else ' '
+                print(f"{icon} {item['row']:<5} {item['id']:<6} {item['name']:<50} {item['new_code']:<12}")
+            if len(updated_list) > 20:
+                print(f'  ... and {len(updated_list) - 20} more clients')
+            print()
+
+        if not_found > 0:
+            print('NOT FOUND (need to create in DB):')
+            print(f'{"Row":<6} {"code_1c":<12} {"Name":<50}')
+            print('-' * 70)
+            for item in not_found_list[:20]:
+                code = item['code_1c'] if item['code_1c'] else 'N/A'
+                print(f"  {item['row']:<5} {code:<12} {item['name']:<50}")
+            if len(not_found_list) > 20:
+                print(f'  ... and {len(not_found_list) - 20} more clients')
+            print()
+
+        print('=' * 70)
+        if test_mode:
+            print('!!! TEST MODE - NO CHANGES SAVED TO DATABASE !!!')
+            print('Run without --test to save changes')
+        else:
+            print('Import completed successfully!')
+        print('=' * 70)
