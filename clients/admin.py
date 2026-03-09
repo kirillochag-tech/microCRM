@@ -149,15 +149,9 @@ class ClientResource(resources.ModelResource):
     def import_row(self, row, instance_loader, **kwargs):
         """
         Override import_row to ensure code_1c is updated for existing clients.
-
-        Algorithm:
-        1. If code_1c provided - find client by code_1c
-        2. If not found by code_1c - find by name
-        3. If found - update fields and save
-        4. If not found - skip (don't create new)
         """
         from import_export.results import RowResult
-        
+
         code_1c = row.get('code_1c')
         name = row.get('name')
 
@@ -173,26 +167,33 @@ class ClientResource(resources.ModelResource):
         if not instance and name:
             instance = Client.objects.filter(name=name).first()
             if instance and code_1c:
-                # Update code_1c for existing client
                 instance.code_1c = code_1c
 
         # Step 3: If found, update and save
         if instance:
-            # Call before_save_instance to update all fields
             self.before_save_instance(instance, row, **kwargs)
             instance.save()
 
-            # Create a mock result
             result = RowResult()
             result.instance = instance
             result.new_record = False
-            result.errors = []  # No errors - success
+            result.errors = []
             return result
         else:
             # Not found - skip with error
             result = RowResult()
-            result.errors = [f'Клиент не найден: {name}']
+            result.errors = [f'Клиент не найден: {name} (код 1С: {code_1c})']
             return result
+
+    def get_import_form(self):
+        """Get custom import form."""
+        from .forms import ClientImportForm
+        return ClientImportForm
+
+    def process_import(self, request, *args, **kwargs):
+        """Process import and store results in session."""
+        result = super().process_import(request, *args, **kwargs)
+        return result
 
     def skip_row(self, instance, original, row, import_validation_errors=None):
         """
@@ -263,7 +264,7 @@ class ClientImportForm(forms.Form):
 class ClientAdmin(ImportExportModelAdmin):
     """
     Admin interface for Client model with advanced 1C import.
-    
+
     Features:
     - Import/export with Excel/CSV
     - 1C code-based matching
@@ -278,6 +279,7 @@ class ClientAdmin(ImportExportModelAdmin):
     filter_horizontal = ('client_groups',)
     list_per_page = 20
     change_list_template = 'admin/clients/client_import_change_list.html'
+    import_template_name = 'admin/clients/client_import.html'
 
     def get_groups(self, obj):
         """Return comma-separated list of client groups."""

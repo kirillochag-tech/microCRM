@@ -1,0 +1,101 @@
+{% extends "admin/import_export/import.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .import-results {
+        margin: 20px 0;
+        padding: 15px;
+        border-radius: 5px;
+    }
+    .import-results h3 {
+        margin-top: 0;
+        color: #333;
+    }
+    .result-success {
+        background-color: #d4edda;
+        border-left: 4px solid #28a745;
+    }
+    .result-error {
+        background-color: #f8d7da;
+        border-left: 4px solid #dc3545;
+    }
+    .result-item {
+        padding: 8px 12px;
+        margin: 5px 0;
+        border-radius: 3px;
+        font-family: monospace;
+    }
+    .result-item.success {
+        background-color: #c3e6cb;
+    }
+    .result-item.error {
+        background-color: #f5c6cb;
+    }
+    .result-icon {
+        display: inline-block;
+        width: 20px;
+        margin-right: 10px;
+        font-weight: bold;
+    }
+    .summary-box {
+        background-color: #e7f3ff;
+        border-left: 4px solid #2196F3;
+        padding: 15px;
+        margin: 20px 0;
+    }
+    .summary-item {
+        margin: 5px 0;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{{ block.super }}
+
+{% if result %}
+    <div class="summary-box">
+        <h3>📊 Результаты импорта</h3>
+        <div class="summary-item">
+            <strong>Всего строк:</strong> {{ result.total_rows }}
+        </div>
+        <div class="summary-item">
+            <strong>✅ Успешно:</strong> {{ result.success_rows }}
+        </div>
+        <div class="summary-item">
+            <strong>❌ Ошибки:</strong> {{ result.error_rows }}
+        </div>
+    </div>
+
+    {% if result.rows %}
+        <div class="import-results result-success">
+            <h3>✅ Успешно импортировано ({{ result.success_rows }})</h3>
+            {% for row in result.rows %}
+                {% if not row.errors %}
+                    <div class="result-item success">
+                        <span class="result-icon">✓</span>
+                        Строка {{ forloop.counter|add:1 }}: {{ row.instance.name }} → код 1С: {{ row.instance.code_1c }}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <div class="import-results result-error">
+            <h3>❌ Ошибки импорта ({{ result.error_rows }})</h3>
+            {% for row in result.rows %}
+                {% if row.errors %}
+                    <div class="result-item error">
+                        <span class="result-icon">✗</span>
+                        Строка {{ forloop.counter|add:1 }}: 
+                        {% for error in row.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endif %}
+{% endblock %}
