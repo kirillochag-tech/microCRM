@@ -148,52 +148,43 @@ class ClientResource(resources.ModelResource):
     def skip_row(self, instance, original, row, import_validation_errors=None):
         """
         Skip rows that don't match existing clients.
-        
+
         Skip if:
         - No code_1c provided AND no name match found
         - This prevents creating duplicate clients
         """
         if import_validation_errors:
             return True
-            
+
         code_1c = row.get('code_1c')
         name = row.get('name')
-        
+
         # If we have a code_1c but no match found, skip (don't create new)
         if code_1c and not instance.pk:
             return True
-            
+
         # If no code_1c and no name match, skip
         if not code_1c and not instance.pk:
             return True
-            
+
+        # Don't skip if instance exists and has code_1c to update
+        if instance.pk and code_1c:
+            return False
+
         return False
 
     def after_import_row(self, row, result, **kwargs):
         """
-        After importing each row, log the result with clear messages.
+        After importing each row, ensure code_1c is saved.
         """
         code_1c = row.get('code_1c')
         name = row.get('name')
 
-        if result.errors:
-            # Error during import - client not found
-            result.append_warning_message(
-                f"[НЕ НАЙДЕН] {name} (код 1С: {code_1c or 'не указан'})"
-            )
-        else:
-            # Successfully imported
-            instance = result.instance if hasattr(result, 'instance') else None
-            if instance and instance.pk:
-                # Check if code was updated
-                if hasattr(instance, 'code_1c') and instance.code_1c == code_1c:
-                    result.append_info_message(
-                        f"[ОБНОВЛЁН] {name} → код 1С: {code_1c}"
-                    )
-                else:
-                    result.append_info_message(
-                        f"[Б/И] {name} (код 1С: {code_1c or '—'})"
-                    )
+        # Force update code_1c if instance exists
+        if result.instance and result.instance.pk and code_1c:
+            # Update code_1c directly in database
+            Client.objects.filter(pk=result.instance.pk).update(code_1c=code_1c)
+            result.instance.code_1c = code_1c  # Update in-memory value
 
 
 class ClientImportForm(forms.Form):
