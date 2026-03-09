@@ -124,7 +124,6 @@ class ClientResource(resources.ModelResource):
     def before_save_instance(self, instance, row, **kwargs):
         """
         Before saving each row, update fields from import data.
-        This is where actual field updates happen.
         """
         # Update code_1c if provided in row
         code_1c = row.get('code_1c')
@@ -145,55 +144,6 @@ class ClientResource(resources.ModelResource):
                 instance.stand_count = int(row.get('stand_count'))
             except (ValueError, TypeError):
                 pass
-
-    def import_row(self, row, instance_loader, **kwargs):
-        """
-        Override import_row to ensure code_1c is updated for existing clients.
-        """
-        from import_export.results import RowResult
-
-        code_1c = row.get('code_1c')
-        name = row.get('name')
-
-        instance = None
-
-        # Step 1: Try to find by code_1c
-        if code_1c:
-            instance = Client.objects.filter(code_1c=code_1c).first()
-            if instance and name and instance.name != name:
-                instance.name = name
-
-        # Step 2: If not found, try to find by name
-        if not instance and name:
-            instance = Client.objects.filter(name=name).first()
-            if instance and code_1c:
-                instance.code_1c = code_1c
-
-        # Step 3: If found, update and save
-        if instance:
-            self.before_save_instance(instance, row, **kwargs)
-            instance.save()
-
-            result = RowResult()
-            result.instance = instance
-            result.new_record = False
-            result.errors = []
-            return result
-        else:
-            # Not found - skip with error
-            result = RowResult()
-            result.errors = [f'Клиент не найден: {name} (код 1С: {code_1c})']
-            return result
-
-    def get_import_form(self):
-        """Get custom import form."""
-        from .forms import ClientImportForm
-        return ClientImportForm
-
-    def process_import(self, request, *args, **kwargs):
-        """Process import and store results in session."""
-        result = super().process_import(request, *args, **kwargs)
-        return result
 
     def skip_row(self, instance, original, row, import_validation_errors=None):
         """
@@ -263,13 +213,10 @@ class ClientImportForm(forms.Form):
 @admin.register(Client)
 class ClientAdmin(ImportExportModelAdmin):
     """
-    Admin interface for Client model with advanced 1C import.
-
-    Features:
-    - Import/export with Excel/CSV
-    - 1C code-based matching
-    - Duplicate detection
-    - Task preservation during client updates
+    Admin interface for Client model.
+    
+    NOTE: For 1C import, use management command:
+    python manage.py import_clients_from_excel
     """
 
     resource_class = ClientResource
@@ -278,8 +225,6 @@ class ClientAdmin(ImportExportModelAdmin):
     search_fields = ('name', 'address', 'code_1c', 'trading_point_name')
     filter_horizontal = ('client_groups',)
     list_per_page = 20
-    change_list_template = 'admin/clients/client_import_change_list.html'
-    import_template_name = 'admin/clients/client_import.html'
 
     def get_groups(self, obj):
         """Return comma-separated list of client groups."""
