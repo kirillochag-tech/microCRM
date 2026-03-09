@@ -149,19 +149,34 @@ class ClientResource(resources.ModelResource):
         """
         code_1c = row.get('code_1c')
         name = row.get('name')
-        
+
         if result.errors:
             result.append_warning_message(
                 f"Ошибка импорта клиента: {name} (код 1С: {code_1c or 'не указан'})"
             )
-        elif result.new_record:
-            result.append_info_message(
-                f"Создан новый клиент: {name} (код 1С: {code_1c or 'не указан'})"
-            )
         else:
-            result.append_info_message(
-                f"Обновлен клиент: {name} (код 1С: {code_1c or 'не указан'})"
-            )
+            # Проверяем, была ли это новая запись или обновление
+            # В новых версиях django-import-export атрибут new_record удалён
+            instance = result.instance if hasattr(result, 'instance') else None
+            if instance and instance.pk:
+                # Проверяем, было ли это создание нового объекта
+                # Если объект существует и у него есть created_at, проверяем время
+                if hasattr(instance, 'created_at') and instance.created_at:
+                    from django.utils import timezone
+                    from datetime import timedelta
+                    # Если создан в последние 5 минут - это новая запись
+                    if timezone.now() - instance.created_at < timedelta(minutes=5):
+                        result.append_info_message(
+                            f"Создан новый клиент: {name} (код 1С: {code_1c or 'не указан'})"
+                        )
+                    else:
+                        result.append_info_message(
+                            f"Обновлен клиент: {name} (код 1С: {code_1c or 'не указан'})"
+                        )
+                else:
+                    result.append_info_message(
+                        f"Обновлен клиент: {name} (код 1С: {code_1c or 'не указан'})"
+                    )
 
 
 class ClientImportForm(forms.Form):
