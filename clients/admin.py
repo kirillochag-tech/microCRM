@@ -81,43 +81,70 @@ class ClientResource(resources.ModelResource):
     def get_or_init_instance(self, instance_loader, row):
         """
         Custom logic for finding or creating client instance during import.
-        
+
         Returns tuple: (instance, created)
+        
+        IMPORTANT: This method only finds/creates the instance.
+        Actual field updates happen in before_save_instance or import_row.
         """
         code_1c = row.get('code_1c')
         name = row.get('name')
-        
+
         # Strategy 1: Match by code_1c if provided
         if code_1c:
             try:
                 client = Client.objects.get(code_1c=code_1c)
                 # Found existing client by 1C code
-                # Update name if it differs
+                # Update name if it differs (will be saved later)
                 if name and client.name != name:
                     client.name = name
                 return client, False
             except Client.DoesNotExist:
                 pass
-        
+
         # Strategy 2: Match by name (case-sensitive) if code_1c not provided or not found
         if name:
             try:
                 client = Client.objects.get(name=name)
                 # Found existing client by name
-                # Update code_1c if provided and client doesn't have it
+                # Update code_1c if provided and client doesn't have it (will be saved later)
                 if code_1c and not client.code_1c:
                     client.code_1c = code_1c
                 elif code_1c and client.code_1c and client.code_1c != code_1c:
-                    # Name matches but code_1c differs - this is a conflict
-                    # Keep existing code_1c, log warning
-                    pass
+                    # Name matches but code_1c differs - update to new code
+                    client.code_1c = code_1c
                 return client, False
             except Client.DoesNotExist:
                 pass
-        
+
         # No match found - create new instance (will be skipped by skip_row if no code_1c)
         instance = Client()
         return instance, True
+
+    def before_save_instance(self, instance, row, **kwargs):
+        """
+        Before saving each row, update fields from import data.
+        This is where actual field updates happen.
+        """
+        # Update code_1c if provided in row
+        code_1c = row.get('code_1c')
+        if code_1c:
+            instance.code_1c = code_1c
+        
+        # Update other fields
+        if row.get('name'):
+            instance.name = row.get('name')
+        if row.get('address'):
+            instance.address = row.get('address')
+        if row.get('trading_point_name'):
+            instance.trading_point_name = row.get('trading_point_name')
+        if row.get('trading_point_address'):
+            instance.trading_point_address = row.get('trading_point_address')
+        if row.get('stand_count'):
+            try:
+                instance.stand_count = int(row.get('stand_count'))
+            except (ValueError, TypeError):
+                pass
 
     def skip_row(self, instance, original, row, import_validation_errors=None):
         """
