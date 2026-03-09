@@ -146,6 +146,52 @@ class ClientResource(resources.ModelResource):
             except (ValueError, TypeError):
                 pass
 
+    def import_row(self, row, instance_loader, **kwargs):
+        """
+        Override import_row to ensure code_1c is updated for existing clients.
+        
+        Algorithm:
+        1. If code_1c provided - find client by code_1c
+        2. If not found by code_1c - find by name
+        3. If found - update fields and save
+        4. If not found - skip (don't create new)
+        """
+        code_1c = row.get('code_1c')
+        name = row.get('name')
+        
+        instance = None
+        
+        # Step 1: Try to find by code_1c
+        if code_1c:
+            instance = Client.objects.filter(code_1c=code_1c).first()
+            if instance and name:
+                instance.name = name
+        
+        # Step 2: If not found, try to find by name
+        if not instance and name:
+            instance = Client.objects.filter(name=name).first()
+            if instance and code_1c:
+                # Update code_1c for existing client
+                instance.code_1c = code_1c
+        
+        # Step 3: If found, update and save
+        if instance:
+            # Call before_save_instance to update all fields
+            self.before_save_instance(instance, row, **kwargs)
+            instance.save()
+            
+            # Create a mock result
+            from import_export.results import RowResult
+            result = RowResult()
+            result.instance = instance
+            result.new_record = False
+            return result
+        else:
+            # Not found - skip
+            result = RowResult()
+            result.errors = ['Клиент не найден']
+            return result
+
     def skip_row(self, instance, original, row, import_validation_errors=None):
         """
         Skip rows that don't match existing clients.
