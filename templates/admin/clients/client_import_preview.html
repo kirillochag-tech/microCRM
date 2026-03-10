@@ -37,7 +37,9 @@
                 {% if item.update_name %}
                     <div style="color: #dc3545;">{{ item.old_name }} → {{ item.new_name }}</div>
                 {% endif %}
-                <div style="color: #28a745;">code_1c: {{ item.old_code|default:"—" }} → <strong>{{ item.new_code }}</strong></div>
+                {% if item.new_code %}
+                    <div style="color: #28a745;">code_1c: {{ item.old_code|default:"—" }} → <strong>{{ item.new_code }}</strong></div>
+                {% endif %}
             </td>
         </tr>
         {% endif %}{% endfor %}

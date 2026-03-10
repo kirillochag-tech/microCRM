@@ -63,25 +63,52 @@ class ClientAdmin(admin.ModelAdmin):
                 if code_1c:
                     instance = Client.objects.filter(code_1c=code_1c).first()
                     # If found by code_1c but name differs - mark for name update
-                    if instance and name and instance.name != name:
-                        update_name = True
+                    if instance and name:
+                        # Strip whitespace for comparison
+                        db_name = instance.name.strip() if instance.name else ''
+                        file_name = name.strip() if name else ''
+                        if db_name != file_name:
+                            update_name = True
+                            print(f"Name mismatch: DB='{db_name}' vs File='{file_name}'")
 
                 # Step 2: If not found, try to find by name
                 if not instance and name:
                     instance = Client.objects.filter(name=name).first()
 
-                # Store result
+                # Store result - ONLY if there are actual changes
                 if instance:
-                    updated.append({
-                        'row': row_idx,
-                        'id': instance.id,
-                        'name': name[:60],
-                        'old_code': instance.code_1c,
-                        'new_code': code_1c,
-                        'old_name': instance.name if update_name else None,
-                        'new_name': name if update_name else None,
-                        'update_name': update_name,
-                    })
+                    # Check if there are any changes
+                    has_changes = False
+                    has_code_change = False
+                    
+                    # Check code_1c change (only if file has code and it differs from DB)
+                    if code_1c:
+                        db_code = instance.code_1c.strip() if instance.code_1c else ''
+                        if db_code != code_1c:
+                            has_code_change = True
+                            has_changes = True
+                    
+                    # Check name change (strip whitespace for comparison)
+                    if name:
+                        db_name = instance.name.strip() if instance.name else ''
+                        file_name = name.strip() if name else ''
+                        if db_name != file_name:
+                            update_name = True
+                            has_changes = True
+                            print(f"Name mismatch: DB='{db_name}' vs File='{file_name}'")
+                    
+                    # Only add to list if there are changes
+                    if has_changes:
+                        updated.append({
+                            'row': row_idx,
+                            'id': instance.id,
+                            'name': name[:60],
+                            'old_code': instance.code_1c,
+                            'new_code': code_1c if has_code_change else None,
+                            'old_name': instance.name if update_name else None,
+                            'new_name': name if update_name else None,
+                            'update_name': update_name,
+                        })
                 else:
                     not_found.append({
                         'row': row_idx,
@@ -123,23 +150,37 @@ class ClientAdmin(admin.ModelAdmin):
         # Apply updates
         updated_count = 0
         name_updated_count = 0
-        
+
         for item in import_data['updated']:
             try:
                 client = Client.objects.get(pk=item['id'])
-                
-                # Update code_1c if provided
-                if item['new_code']:
+                changed_fields = []
+
+                # Update code_1c if provided and different
+                if item.get('new_code'):
+                    old_code = client.code_1c
                     client.code_1c = item['new_code']
-                
-                # Update name if it differs (found by code_1c)
+                    changed_fields.append(f'code_1c: {old_code} → {item["new_code"]}')
+                    print(f"Client {client.id}: code_1c {old_code} → {item['new_code']}")
+
+                # Update name if marked for update
                 if item.get('update_name') and item.get('new_name'):
+                    old_name = client.name
                     client.name = item['new_name']
                     name_updated_count += 1
-                
-                client.save()
-                updated_count += 1
+                    changed_fields.append(f'name: {old_name} → {item["new_name"]}')
+                    print(f"Client {client.id}: name '{old_name}' → '{item['new_name']}'")
+                else:
+                    print(f"Client {client.id}: name NOT updated (update_name={item.get('update_name')}, has_new_name={bool(item.get('new_name'))})")
+
+                if changed_fields:
+                    client.save()
+                    updated_count += 1
+                    print(f"Client {client.id} saved: {', '.join(changed_fields)}")
+                else:
+                    print(f"Client {client.id}: NO CHANGES to save")
             except Client.DoesNotExist:
+                print(f"Client ID {item['id']} not found!")
                 pass
 
         # Clear session
