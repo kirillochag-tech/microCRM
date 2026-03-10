@@ -21,5 +21,5 @@ class StaticFilesServer:
         return self.static_handler(environ, start_response)
 
 if __name__ == "__main__":
-    print("Starting Waitress server on http://0.0.0.0:8000")
-    serve(StaticFilesServer(application), host="0.0.0.0", port=8000, threads=6)
+    print("Starting Waitress server on http://0.0.0.0:8001")
+    serve(StaticFilesServer(application), host="0.0.0.0", port=8001, threads=6)

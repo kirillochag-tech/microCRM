@@ -1,23 +1,21 @@
 import sys
 import os
-import subprocess
 
 # Добавляем корневую папку проекта в PYTHONPATH
 project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, project_root)
 
-# Путь к виртуальному окружению (как в start.cmd)
-venv_path = r"E:\Разное\Софт\my_venv\web\web\Scripts\python.exe"
+# Путь к виртуальному окружению в папке проекта
+venv_path = os.path.join(project_root, '.venv', 'Scripts', 'python.exe')
 
-# Проверяем наличие venv
+# Проверяем наличие venv и запускаем через него
 if os.path.exists(venv_path):
-    # Запускаем через venv
+    print(f"Using virtual environment: {venv_path}")
     os.execv(venv_path, [venv_path] + sys.argv)
 else:
-    # Если venv не найден, запускаем как есть
-    print("WARNING: Виртуальное окружение не найдено по пути:")
-    print(f"  {venv_path}")
+    print("WARNING: Виртуальное окружение не найдено.")
     print("Запуск с текущим интерпретатором...")
+    print()
 
 # Устанавливаем переменную окружения перед импортом Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
