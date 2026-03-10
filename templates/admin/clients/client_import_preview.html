@@ -1,0 +1,45 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+<style>
+.summary-box { background: #e7f3ff; border-left: 4px solid #2196F3; padding: 15px; margin: 20px 0; }
+.success-box { background: #d4edda; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0; }
+.error-box { background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0; }
+.result-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+.result-table th, .result-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+.result-table th { background: #f5f5f5; font-weight: bold; }
+.btn-confirm { display: inline-block; padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px; }
+.btn-cancel { display: inline-block; padding: 12px 24px; background: #dc3545; color: white; text-decoration: none; border-radius: 4px; font-size: 14px; }
+.action-buttons { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+<div class="summary-box">
+    <h3>Предварительный просмотр</h3>
+    <p><strong>Будет обновлено:</strong> {{ updated_count }}</p>
+    <p><strong>Не найдено:</strong> {{ not_found_count }}</p>
+</div>
+{% if updated %}
+<div class="success-box">
+    <h3>Клиенты для обновления ({{ updated_count }})</h3>
+    <table class="result-table">
+        <thead><tr><th>Строка</th><th>ID</th><th>Наименование</th><th>Новый code_1c</th></tr></thead>
+        <tbody>
+        {% for item in updated %}{% if forloop.counter <= 20 %}
+        <tr><td>{{ item.row }}</td><td>{{ item.id }}</td><td>{{ item.name }}</td><td><strong>{{ item.new_code }}</strong></td></tr>
+        {% endif %}{% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+<div class="action-buttons">
+    <form method="post" action="{% url 'admin:clients_import_1c_confirm' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-confirm">✅ Подтвердить импорт</button>
+        <a href="{% url 'admin:clients_client_changelist' %}" class="btn-cancel">❌ Отмена</a>
+    </form>
+</div>
+{% endblock %}
