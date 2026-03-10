@@ -81,6 +81,7 @@
         </thead>
         <tbody>
             {% for item in updated %}
+            {% if forloop.counter <= 20 %}
             <tr>
                 <td>{{ item.row }}</td>
                 <td>{{ item.id }}</td>
@@ -94,14 +95,14 @@
                     {% endif %}
                 </td>
             </tr>
-            {% if forloop.counter == 20 %}
+            {% endif %}
+            {% if forloop.counter == 20 and updated|length > 20 %}
             <tr>
                 <td colspan="5" style="text-align: center; color: #666;">
                     ... и ещё {{ updated|length|add:"-20" }} клиентов ...
                 </td>
             </tr>
             {% endif %}
-            {% if forloop.counter >= 20 %}{% break %}{% endif %}
             {% endfor %}
         </tbody>
     </table>
@@ -121,19 +122,20 @@
         </thead>
         <tbody>
             {% for item in not_found %}
+            {% if forloop.counter <= 20 %}
             <tr>
                 <td>{{ item.row }}</td>
                 <td>{{ item.code_1c|default:"—" }}</td>
                 <td>{{ item.name }}</td>
             </tr>
-            {% if forloop.counter == 20 %}
+            {% endif %}
+            {% if forloop.counter == 20 and not_found|length > 20 %}
             <tr>
                 <td colspan="3" style="text-align: center; color: #666;">
                     ... и ещё {{ not_found|length|add:"-20" }} клиентов ...
                 </td>
             </tr>
             {% endif %}
-            {% if forloop.counter >= 20 %}{% break %}{% endif %}
             {% endfor %}
         </tbody>
     </table>
