@@ -1,0 +1,20 @@
+{% extends "admin/change_list.html" %}
+{% load i18n static %}
+
+{% block object-tools %}
+<div style="margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 5px; border: 2px solid #007bff;">
+    <h4 style="margin-top: 0; color: #007bff;">📥 Импорт клиентов из 1С</h4>
+    <form method="post" action="{% url 'admin:clients_import_1c' %}" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: center;">
+        {% csrf_token %}
+        <input type="file" name="import_file" accept=".xlsx,.xls" required 
+               style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        <button type="submit" class="button" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            ✅ Импорт
+        </button>
+    </form>
+    <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">
+        ℹ️ Формат Excel: столбцы <code>id</code>, <code>code_1c</code>, <code>name</code>
+    </p>
+</div>
+{{ block.super }}
+{% endblock %}
