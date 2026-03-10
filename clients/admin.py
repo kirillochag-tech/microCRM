@@ -54,13 +54,41 @@ class ClientResource(resources.ModelResource):
 
     class Meta:
         model = Client
-        # Поле code_1c должно быть вторым после ID для корректного импорта
         fields = ('id', 'code_1c', 'name', 'employee_username', 'client_groups_names',
                   'address', 'trading_point_name', 'trading_point_address', 'stand_count')
-        # Порядок экспорта: code_1c вторым после ID
         export_order = ('id', 'code_1c', 'name', 'employee_username', 'client_groups_names',
                         'address', 'trading_point_name', 'trading_point_address', 'stand_count')
-        import_id_fields = ['id']  # Use ID for import tracking
+        import_id_fields = ['id']
+
+    def get_instance(self, instance_loader, row):
+        """
+        Override to find client by code_1c or name when id is not provided.
+        """
+        # First try to get by id if provided
+        instance, created = super().get_instance(instance_loader, row)
+        if instance and not created:
+            return instance, False
+        
+        # If not found by id, try code_1c
+        code_1c = row.get('code_1c')
+        if code_1c:
+            try:
+                client = Client.objects.get(code_1c=code_1c)
+                return client, False
+            except Client.DoesNotExist:
+                pass
+        
+        # Try name
+        name = row.get('name')
+        if name:
+            try:
+                client = Client.objects.get(name=name)
+                return client, False
+            except Client.DoesNotExist:
+                pass
+        
+        # Not found - return None to skip
+        return None, False
 
     def before_import_row(self, row, **kwargs):
         """
