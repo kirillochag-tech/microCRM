@@ -25,9 +25,11 @@ import django
 django.setup()
 
 from waitress import serve
+from django.contrib.staticfiles.handlers import StaticFilesHandler
 
-# Импортируем WSGI-приложение из config/
+# Импортируем WSGI-приложение из config/ и оборачиваем в StaticFilesHandler
 from config.wsgi import application
+application = StaticFilesHandler(application)
 
 if __name__ == "__main__":
     print("=" * 60)
