@@ -26,10 +26,20 @@
 <div class="success-box">
     <h3>Клиенты для обновления ({{ updated_count }})</h3>
     <table class="result-table">
-        <thead><tr><th>Строка</th><th>ID</th><th>Наименование</th><th>Новый code_1c</th></tr></thead>
+        <thead><tr><th>Строка</th><th>ID</th><th>Наименование</th><th>Изменения</th></tr></thead>
         <tbody>
         {% for item in updated %}{% if forloop.counter <= 20 %}
-        <tr><td>{{ item.row }}</td><td>{{ item.id }}</td><td>{{ item.name }}</td><td><strong>{{ item.new_code }}</strong></td></tr>
+        <tr>
+            <td>{{ item.row }}</td>
+            <td>{{ item.id }}</td>
+            <td>{{ item.name }}</td>
+            <td>
+                {% if item.update_name %}
+                    <div style="color: #dc3545;">{{ item.old_name }} → {{ item.new_name }}</div>
+                {% endif %}
+                <div style="color: #28a745;">code_1c: {{ item.old_code|default:"—" }} → <strong>{{ item.new_code }}</strong></div>
+            </td>
+        </tr>
         {% endif %}{% endfor %}
         </tbody>
     </table>

@@ -57,10 +57,14 @@ class ClientAdmin(admin.ModelAdmin):
                     continue
 
                 instance = None
+                update_name = False
 
                 # Step 1: Try to find by code_1c
                 if code_1c:
                     instance = Client.objects.filter(code_1c=code_1c).first()
+                    # If found by code_1c but name differs - mark for name update
+                    if instance and name and instance.name != name:
+                        update_name = True
 
                 # Step 2: If not found, try to find by name
                 if not instance and name:
@@ -74,6 +78,9 @@ class ClientAdmin(admin.ModelAdmin):
                         'name': name[:60],
                         'old_code': instance.code_1c,
                         'new_code': code_1c,
+                        'old_name': instance.name if update_name else None,
+                        'new_name': name if update_name else None,
+                        'update_name': update_name,
                     })
                 else:
                     not_found.append({
@@ -115,24 +122,34 @@ class ClientAdmin(admin.ModelAdmin):
 
         # Apply updates
         updated_count = 0
+        name_updated_count = 0
+        
         for item in import_data['updated']:
             try:
                 client = Client.objects.get(pk=item['id'])
+                
+                # Update code_1c if provided
                 if item['new_code']:
                     client.code_1c = item['new_code']
-                    client.save()
-                    updated_count += 1
+                
+                # Update name if it differs (found by code_1c)
+                if item.get('update_name') and item.get('new_name'):
+                    client.name = item['new_name']
+                    name_updated_count += 1
+                
+                client.save()
+                updated_count += 1
             except Client.DoesNotExist:
                 pass
 
         # Clear session
         request.session['import_data'] = None
 
-        self.message_user(
-            request,
-            f'Импорт завершён! Обновлено клиентов: {updated_count}',
-            level=messages.SUCCESS
-        )
+        msg = f'Импорт завершён! Обновлено клиентов: {updated_count}'
+        if name_updated_count > 0:
+            msg += f' (обновлено имён: {name_updated_count})'
+        
+        self.message_user(request, msg, level=messages.SUCCESS)
         return HttpResponseRedirect(reverse('admin:clients_client_changelist'))
 
     def get_groups(self, obj):
