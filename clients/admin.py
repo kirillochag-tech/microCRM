@@ -99,7 +99,7 @@ class ClientAdmin(admin.ModelAdmin):
                     
                     # Only add to list if there are changes
                     if has_changes:
-                        updated.append({
+                        updated_item = {
                             'row': row_idx,
                             'id': instance.id,
                             'name': name[:60],
@@ -108,7 +108,9 @@ class ClientAdmin(admin.ModelAdmin):
                             'old_name': instance.name if update_name else None,
                             'new_name': name if update_name else None,
                             'update_name': update_name,
-                        })
+                        }
+                        updated.append(updated_item)
+                        print(f"Added to update: id={instance.id}, update_name={update_name}, new_name='{name[:30] if update_name else None}'")
                 else:
                     not_found.append({
                         'row': row_idx,
@@ -150,6 +152,7 @@ class ClientAdmin(admin.ModelAdmin):
         # Apply updates
         updated_count = 0
         name_updated_count = 0
+        code_updated_count = 0
 
         for item in import_data['updated']:
             try:
@@ -160,27 +163,32 @@ class ClientAdmin(admin.ModelAdmin):
                 if item.get('new_code'):
                     old_code = client.code_1c
                     client.code_1c = item['new_code']
-                    changed_fields.append(f'code_1c: {old_code} → {item["new_code"]}')
+                    changed_fields.append(f'code_1c')
+                    code_updated_count += 1
                     print(f"Client {client.id}: code_1c {old_code} → {item['new_code']}")
 
                 # Update name if marked for update
                 if item.get('update_name') and item.get('new_name'):
                     old_name = client.name
                     client.name = item['new_name']
+                    changed_fields.append(f'name')
                     name_updated_count += 1
-                    changed_fields.append(f'name: {old_name} → {item["new_name"]}')
-                    print(f"Client {client.id}: name '{old_name}' → '{item['new_name']}'")
-                else:
-                    print(f"Client {client.id}: name NOT updated (update_name={item.get('update_name')}, has_new_name={bool(item.get('new_name'))})")
+                    print(f"Client {client.id}: name UPDATED '{old_name[:50]}' → '{item['new_name'][:50]}'")
+                elif item.get('update_name'):
+                    print(f"Client {client.id}: name flag set but new_name is empty")
 
+                # Save if there are changes
                 if changed_fields:
                     client.save()
                     updated_count += 1
-                    print(f"Client {client.id} saved: {', '.join(changed_fields)}")
+                    print(f"Client {client.id} SAVED: {', '.join(changed_fields)}")
                 else:
-                    print(f"Client {client.id}: NO CHANGES to save")
+                    print(f"Client {client.id}: NO CHANGES to save (update_name={item.get('update_name')}, new_code={item.get('new_code')})")
             except Client.DoesNotExist:
                 print(f"Client ID {item['id']} not found!")
+                pass
+            except Exception as e:
+                print(f"Client {client.id} ERROR: {e}")
                 pass
 
         # Clear session
@@ -189,7 +197,9 @@ class ClientAdmin(admin.ModelAdmin):
         msg = f'Импорт завершён! Обновлено клиентов: {updated_count}'
         if name_updated_count > 0:
             msg += f' (обновлено имён: {name_updated_count})'
-        
+        if code_updated_count > 0:
+            msg += f' (обновлено code_1c: {code_updated_count})'
+
         self.message_user(request, msg, level=messages.SUCCESS)
         return HttpResponseRedirect(reverse('admin:clients_client_changelist'))
 
