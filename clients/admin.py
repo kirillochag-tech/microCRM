@@ -4,6 +4,7 @@ Admin interface for client management with 1C import button.
 """
 
 import os
+import re
 from django.contrib import admin, messages
 from django.utils.translation import gettext_lazy as _
 from django.template.response import TemplateResponse
@@ -12,6 +13,15 @@ from django.http import HttpResponseRedirect
 from django.db.models import Count
 from openpyxl import load_workbook
 from .models import Client, ClientGroup
+
+
+def normalize_whitespace(text):
+    """Normalize whitespace: strip and replace multiple spaces with single space."""
+    if not text:
+        return ''
+    text = str(text).strip()
+    text = re.sub(r'\s+', ' ', text)
+    return text
 
 
 @admin.register(Client)
@@ -88,10 +98,10 @@ class ClientAdmin(admin.ModelAdmin):
                             has_code_change = True
                             has_changes = True
                     
-                    # Check name change (strip whitespace for comparison)
+                    # Check name change (normalize whitespace for comparison)
                     if name:
-                        db_name = instance.name.strip() if instance.name else ''
-                        file_name = name.strip() if name else ''
+                        db_name = normalize_whitespace(instance.name)
+                        file_name = normalize_whitespace(name)
                         if db_name != file_name:
                             update_name = True
                             has_changes = True
