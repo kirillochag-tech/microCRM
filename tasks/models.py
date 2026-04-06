@@ -1021,4 +1021,4 @@ class DailyTask(models.Model):
     class Meta:
         verbose_name = _('Задача дня')
         verbose_name_plural = _('Задачи дня')
-        ordering = ['position', '-created_at']
+        ordering = ['-date']

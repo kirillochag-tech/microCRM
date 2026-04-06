@@ -60,7 +60,7 @@
                             {% endfor %}
                         </select>
                         
-                        <button type="button" class="filter-btn group-btn" id="group-toggle" title="Группировать по сотрудникам" onclick="toggleGrouping()">👥</button>
+                        <button type="button" class="filter-btn group-btn" id="group-toggle" title="Группировать по сотрудникам" onclick="toggleGrouping()" style="background: #007bff;">👥</button>
                         <button type="button" class="filter-btn" title="Применить фильтры" onclick="applyFilters()">✓</button>
                         <a href="javascript:void(0)" class="clear-filters" title="Очистить фильтры" onclick="clearFilters()">✕</a>
                     </div>
@@ -75,21 +75,21 @@
                 {% result_list cl %}
 
                 <!-- Контейнер для группированного вида -->
-                <div class="task-cards-container" id="grouped-container" style="display: none;">
+                <div class="task-cards-container" id="grouped-container" style="display: block;">
                     <button type="button" class="expand-all-btn" onclick="toggleAllGroups()">Развернуть все / Свернуть все</button>
                     <div id="grouped-tasks-content"></div>
                 </div>
 
                 <!-- Контейнер для обычного вида -->
-                <div class="task-cards-container" id="task-cards-container" style="display: block !important;">
+                <div class="task-cards-container" id="task-cards-container" style="display: none !important;">
                     <button type="button" class="expand-all-btn" onclick="toggleAllTasks()">Развернуть все / Свернуть все</button>
 
                     {% if tasks %}
                     {% for task in tasks %}
-                    <div class="task-card" data-task-id="{{ task.id }}" data-assignee="{{ task.assignee.id }}">
+                    <div class="task-card" data-task-id="{{ task.id }}" data-assignee="{{ task.assignee.id }}" data-date="{{ task.date|date:'Y-m-d' }}">
                         <div class="task-card-header" onclick="toggleTaskCard(this)">
                             <h4>
-                                <span class="task-date">{{ task.date }}</span>
+                                <span class="task-date" data-date-value="{{ task.date|date:'Y-m-d' }}">{{ task.date }}</span>
                                 <span class="task-client">{{ task.client.name|default:"Без клиента" }}</span>
                                 <span class="task-assignee">{{ task.assignee.username|default:"—" }}</span>
                                 <span class="task-status {{ task.status }}">{{ task.get_status_display }}</span>
@@ -268,8 +268,16 @@ function saveTaskChanges(event, taskId) {
 function showCardView() {
     const resultsEl = document.querySelector('#changelist .results');
     const cardsContainer = document.getElementById('task-cards-container');
+    const groupedContainer = document.getElementById('grouped-container');
     if (resultsEl) resultsEl.style.display = 'none';
-    if (cardsContainer) cardsContainer.style.display = 'block';
+    if (isGrouped) {
+        groupedContainer.style.display = 'block';
+        cardsContainer.style.display = 'none';
+        renderGroupedTasks();
+    } else {
+        groupedContainer.style.display = 'none';
+        cardsContainer.style.display = 'block';
+    }
     document.querySelectorAll('.view-toggle button')[0].classList.add('active');
     document.querySelectorAll('.view-toggle button')[1].classList.remove('active');
 }
@@ -284,11 +292,24 @@ function showTableView() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Инициализация: скрыть таблицу, показать карточки
+    // Инициализация: скрыть таблицу
     const resultsEl = document.querySelector('#changelist .results');
-    const cardsContainer = document.getElementById('task-cards-container');
     if (resultsEl) resultsEl.style.display = 'none';
-    if (cardsContainer) cardsContainer.style.display = 'block';
+
+    const groupedContainer = document.getElementById('grouped-container');
+    const cardsContainer = document.getElementById('task-cards-container');
+
+    if (isGrouped) {
+        // Показываем группированный вид по умолчанию
+        groupedContainer.style.display = 'block';
+        cardsContainer.style.display = 'none';
+        renderGroupedTasks();
+        addGroupedToUrl();
+    } else {
+        // Показываем обычный вид карточек
+        groupedContainer.style.display = 'none';
+        cardsContainer.style.display = 'block';
+    }
 
     // Свёрнуть все карточки
     const cards = document.querySelectorAll('.task-card');
@@ -300,16 +321,7 @@ document.addEventListener('DOMContentLoaded', function() {
             body.classList.add('collapsed');
         }
     });
-    
-    // Восстановление состояния группировки из URL
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('grouped') && urlParams.get('grouped') === '1') {
-        // Небольшая задержка для полного завершения инициализации
-        setTimeout(function() {
-            toggleGrouping();
-        }, 100);
-    }
-    
+
     // Перехват кликов по ссылкам фильтров в правой панели
     const filterLinks = document.querySelectorAll('#changelist-filter a');
     filterLinks.forEach(function(link) {
@@ -378,7 +390,7 @@ function clearFilters() {
 }
 
 // Глобальная переменная для состояния группировки
-let isGrouped = false;
+let isGrouped = true;
 
 // Сохранение состояния развернутых групп
 function saveGroupState() {
@@ -457,12 +469,12 @@ function removeGroupedFromUrl() {
 function renderGroupedTasks() {
     const cards = document.querySelectorAll('#task-cards-container .task-card');
     const groups = {};
-    
+
     // Группируем задачи по сотрудникам
     cards.forEach(card => {
         const assigneeName = card.querySelector('.task-assignee').textContent.trim();
         const assigneeId = card.dataset.assignee;
-        
+
         if (!groups[assigneeId]) {
             groups[assigneeId] = {
                 name: assigneeName,
@@ -471,16 +483,23 @@ function renderGroupedTasks() {
         }
         groups[assigneeId].tasks.push(card.cloneNode(true));
     });
-    
+
     // Создаём HTML для групп
     const groupedContent = document.getElementById('grouped-tasks-content');
     groupedContent.innerHTML = '';
-    
+
     for (const [assigneeId, group] of Object.entries(groups)) {
+        // Сортируем задачи внутри группы по дате (убывание)
+        group.tasks.sort((a, b) => {
+            const dateA = a.dataset.date || '';
+            const dateB = b.dataset.date || '';
+            return dateB.localeCompare(dateA);
+        });
+
         const groupDiv = document.createElement('div');
         groupDiv.className = 'employee-group';
         groupDiv.dataset.assigneeId = assigneeId;
-        
+
         // Заголовок группы
         const groupHeader = document.createElement('div');
         groupHeader.className = 'group-header';
@@ -490,19 +509,19 @@ function renderGroupedTasks() {
             <span class="group-count">(${group.tasks.length} задач)</span>
         `;
         groupHeader.onclick = function() { toggleGroup(this); };
-        
+
         // Контейнер задач группы
         const groupTasks = document.createElement('div');
         groupTasks.className = 'group-tasks collapsed';
         group.tasks.forEach(task => {
             groupTasks.appendChild(task);
         });
-        
+
         groupDiv.appendChild(groupHeader);
         groupDiv.appendChild(groupTasks);
         groupedContent.appendChild(groupDiv);
     }
-    
+
     // Восстанавливаем состояние развернутых групп
     restoreGroupState();
 }
