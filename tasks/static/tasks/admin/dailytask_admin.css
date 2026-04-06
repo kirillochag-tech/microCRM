@@ -5,6 +5,7 @@
     display: flex;
     flex-direction: row;
     gap: 20px;
+    align-items: flex-start;
 }
 
 /* Блок с результатами (таблица) */
@@ -17,6 +18,8 @@
 /* Блок с карточками */
 #task-cards-container {
     display: block;
+    max-height: calc(100vh - 260px);
+    overflow-y: auto;
 }
 
 /* Фильтр справа */
@@ -27,8 +30,11 @@
     border-radius: 4px;
     padding: 15px;
     order: 2;
-    max-height: calc(100vh - 200px);
+    height: fit-content;
+    max-height: calc(100vh - 160px);
     overflow-y: auto;
+    position: sticky;
+    top: 20px;
 }
 
 #changelist-filter h2 {
@@ -356,6 +362,13 @@
 /* Стили для карточек задач */
 .task-cards-container {
     margin-top: 6px;
+    max-height: calc(100vh - 260px);
+    overflow-y: auto;
+}
+
+#grouped-container {
+    max-height: calc(100vh - 260px);
+    overflow-y: auto;
 }
 
 .task-card {
