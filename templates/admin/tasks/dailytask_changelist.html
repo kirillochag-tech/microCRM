@@ -45,6 +45,9 @@
                         </label>
                         <input type="text" size="40" name="q" value="{{ cl.query }}" id="searchbar">
                         <input type="submit" value="Найти">
+                        {% if cl.query %}
+                        <a href="javascript:void(0)" class="clear-search-btn" title="Очистить поиск" onclick="clearSearch()">✕</a>
+                        {% endif %}
                         
                         <!-- Дополнительные фильтры: дата и сотрудник -->
                         <span class="filter-separator"></span>
@@ -370,13 +373,25 @@ function applyFilters() {
             params.append(key, value);
         }
     }
-    
+
     // Сохраняем состояние группировки в параметре
     if (isGrouped) {
         params.append('grouped', '1');
     }
 
     // Перенаправляем с отфильтрованными параметрами
+    window.location.search = params.toString();
+}
+
+// Очистка поиска
+function clearSearch() {
+    const params = new URLSearchParams(window.location.search);
+    params.delete('q');
+
+    if (isGrouped) {
+        params.set('grouped', '1');
+    }
+
     window.location.search = params.toString();
 }
 
