@@ -799,6 +799,28 @@ class DailyTaskAdmin(admin.ModelAdmin):
         )
         return qs.order_by('-date')
 
+    def get_search_results(self, request, queryset, search_term):
+        """Case-insensitive search across multiple fields."""
+        from django.db.models import Q
+
+        if not search_term:
+            return queryset, False
+
+        # Разбиваем поисковый запрос на слова
+        search_terms = search_term.split()
+        
+        # Для каждого слова создаём Q-объект с case-insensitive поиском
+        q_objects = Q()
+        for term in search_terms:
+            q_objects &= (
+                Q(client__name__icontains=term) |
+                Q(creator__username__icontains=term) |
+                Q(assignee__username__icontains=term) |
+                Q(description__icontains=term)
+            )
+        
+        return queryset.filter(q_objects), False
+
     def changelist_view(self, request, extra_context=None):
         """Add additional context for the custom changelist template."""
         from django.contrib.admin.views.main import ChangeList
