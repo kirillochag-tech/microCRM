@@ -803,14 +803,22 @@ class DailyTaskAdmin(admin.ModelAdmin):
         """Add additional context for the custom changelist template."""
         from django.contrib.admin.views.main import ChangeList
         from users.models import CustomUser
-        
+        from datetime import date
+
         extra_context = extra_context or {}
-        
+
         # Удаляем параметр 'grouped' из запроса перед передачей в ChangeList
         # чтобы Django не пытался использовать его как поле фильтрации
         request_get = request.GET.copy()
         if 'grouped' in request_get:
             del request_get['grouped']
+
+        # По умолчанию фильтруем по текущей дате
+        if not request_get.get('date__gte') and not request_get.get('date__lte'):
+            today = date.today().isoformat()
+            request_get['date__gte'] = today
+            request_get['date__lte'] = today
+
         request.GET = request_get
         
         # Получаем ChangeList для применения фильтров

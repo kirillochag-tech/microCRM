@@ -49,7 +49,8 @@
                         <!-- Дополнительные фильтры: дата и сотрудник -->
                         <span class="filter-separator"></span>
                         
-                        <input type="date" id="id_date_filter" name="date__gte" value="{{ request.GET.date__gte }}">
+                        <input type="date" id="id_date_filter" name="date__gte" value="{{ request.GET.date__gte|default:'' }}">
+                        <input type="date" name="date__lte" value="{{ request.GET.date__lte|default:'' }}">
                         
                         <select id="id_employee_filter" name="assignee__exact" title="Сотрудник">
                             <option value="">Все сотрудники</option>
