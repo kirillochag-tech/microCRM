@@ -37,32 +37,29 @@
     top: 20px;
 }
 
-#changelist-filter h2 {
-    font-size: 13px;
-    font-weight: bold;
-    color: #333;
-    margin: 0 0 15px 0;
-    padding-bottom: 10px;
-    border-bottom: 2px solid #007bff;
-    text-transform: uppercase;
-}
-
 /* Заголовок фильтров с кнопкой */
 #changelist-filter .filter-header {
     display: flex;
     align-items: center;
     gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #007bff;
 }
 
 #changelist-filter .filter-header h2 {
+    font-size: 13px;
+    font-weight: bold;
+    color: #333;
     margin: 0;
     padding: 0;
     border: none;
+    text-transform: uppercase;
     flex: 1;
+    display: block;
 }
 
 #changelist-filter .collapse-filters-btn {
-    padding: 2px 8px;
+    padding: 3px 8px;
     background: #6c757d;
     color: white;
     border: none;
@@ -70,6 +67,7 @@
     cursor: pointer;
     font-size: 11px;
     white-space: nowrap;
+    line-height: 1.4;
 }
 
 #changelist-filter .collapse-filters-btn:hover {
