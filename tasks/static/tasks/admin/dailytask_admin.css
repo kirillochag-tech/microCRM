@@ -47,6 +47,35 @@
     text-transform: uppercase;
 }
 
+/* Заголовок фильтров с кнопкой */
+#changelist-filter .filter-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#changelist-filter .filter-header h2 {
+    margin: 0;
+    padding: 0;
+    border: none;
+    flex: 1;
+}
+
+#changelist-filter .collapse-filters-btn {
+    padding: 2px 8px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+#changelist-filter .collapse-filters-btn:hover {
+    background: #5a6268;
+}
+
 #changelist-filter details {
     margin-bottom: 10px;
 }

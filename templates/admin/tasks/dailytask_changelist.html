@@ -154,7 +154,10 @@
         {% block filters %}
         {% if cl.has_filters %}
         <div id="changelist-filter">
-            <h2>{% trans 'Фильтры' %}</h2>
+            <div class="filter-header">
+                <h2>{% trans 'Фильтры' %}</h2>
+                <button type="button" class="collapse-filters-btn" onclick="collapseAllFilters()" title="Свернуть все фильтры">⏏</button>
+            </div>
             {% for spec in cl.filter_specs %}
                 {% admin_list_filter cl spec %}
             {% endfor %}
@@ -552,15 +555,15 @@ function toggleGroup(header) {
 // Развернуть/свернуть все группы
 function toggleAllGroups() {
     const groups = document.querySelectorAll('.employee-group');
-    const allCollapsed = Array.from(groups).every(group => 
+    const allCollapsed = Array.from(groups).every(group =>
         group.querySelector('.group-tasks').classList.contains('collapsed')
     );
-    
+
     groups.forEach(group => {
         const groupTasks = group.querySelector('.group-tasks');
         const toggleIcon = group.querySelector('.group-toggle-icon');
         const header = group.querySelector('.group-header');
-        
+
         if (allCollapsed) {
             groupTasks.classList.remove('collapsed');
             toggleIcon.textContent = '▼';
@@ -571,9 +574,15 @@ function toggleAllGroups() {
             header.classList.remove('expanded');
         }
     });
-    
+
     // Сохраняем состояние
     saveGroupState();
+}
+
+// Свернуть все фильтры в правой панели
+function collapseAllFilters() {
+    const details = document.querySelectorAll('#changelist-filter details');
+    details.forEach(d => d.removeAttribute('open'));
 }
 </script>
 {% endblock %}
