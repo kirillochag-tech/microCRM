@@ -813,6 +813,11 @@ class DailyTaskAdmin(admin.ModelAdmin):
         if 'grouped' in request_get:
             del request_get['grouped']
 
+        # Очищаем пустые параметры, чтобы Django не пытался фильтровать по ним
+        empty_keys = [key for key, value in request_get.items() if value == '']
+        for key in empty_keys:
+            del request_get[key]
+
         # По умолчанию фильтруем по текущей дате
         if not request_get.get('date__gte') and not request_get.get('date__lte'):
             today = date.today().isoformat()
