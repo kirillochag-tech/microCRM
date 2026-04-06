@@ -45,9 +45,7 @@
                         </label>
                         <input type="text" size="40" name="q" value="{{ cl.query }}" id="searchbar">
                         <input type="submit" value="Найти">
-                        {% if cl.query %}
                         <a href="javascript:void(0)" class="clear-search-btn" title="Очистить поиск" onclick="clearSearch()">✕</a>
-                        {% endif %}
                         
                         <!-- Дополнительные фильтры: дата и сотрудник -->
                         <span class="filter-separator"></span>
