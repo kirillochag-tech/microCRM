@@ -490,10 +490,10 @@ function renderGroupedTasks() {
 
     for (const [assigneeId, group] of Object.entries(groups)) {
         // Сортируем задачи внутри группы по дате (убывание)
-        // Прямое сравнение строк YYYY-mm-dd работает корректно
+        // Используем getAttribute вместо dataset для надёжности
         group.tasks.sort((a, b) => {
-            const dateA = a.dataset.date || '';
-            const dateB = b.dataset.date || '';
+            const dateA = a.getAttribute('data-date') || '0000-00-00';
+            const dateB = b.getAttribute('data-date') || '0000-00-00';
             if (dateA > dateB) return -1;
             if (dateA < dateB) return 1;
             return 0;
