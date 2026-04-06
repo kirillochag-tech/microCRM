@@ -817,8 +817,8 @@ class DailyTaskAdmin(admin.ModelAdmin):
         cl = self.get_changelist_instance(request)
 
         # Используем отфильтрованный queryset из cl для карточек
-        # Явно сохраняем сортировку по дате (убывание)
-        extra_context['tasks'] = cl.queryset.order_by('-date')
+        # Принудительно материализуем отсортированный список, чтобы избежать проблем с ленивыми queryset
+        extra_context['tasks'] = list(cl.queryset.order_by('-date'))
         
         # Добавляем список сотрудников для фильтра
         extra_context['employees'] = CustomUser.objects.filter(role='EMPLOYEE').order_by('first_name', 'last_name')

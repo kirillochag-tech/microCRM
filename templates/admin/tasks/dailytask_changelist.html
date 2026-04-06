@@ -85,7 +85,7 @@
                     <button type="button" class="expand-all-btn" onclick="toggleAllTasks()">Развернуть все / Свернуть все</button>
 
                     {% if tasks %}
-                    {% for task in tasks %}
+                    {% for task in tasks|dictsortreversed:"date" %}
                     <div class="task-card" data-task-id="{{ task.id }}" data-assignee="{{ task.assignee.id }}" data-date="{{ task.date|date:'Y-m-d' }}">
                         <div class="task-card-header" onclick="toggleTaskCard(this)">
                             <h4>
